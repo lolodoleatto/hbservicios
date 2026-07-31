@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { products } from './api'
+import { errorMessage, products } from './api'
 
 const TYPE_LABELS = {
   gas_cylinder_full: 'Garrafa llena',
@@ -12,40 +12,69 @@ const EMPTY_FORM = {
   type: 'gas_cylinder_full',
   currentPrice: '',
   stock: '',
+  active: true,
 }
 
-function Products({ onLogout }) {
+function Products() {
   const [list, setList] = useState([])
   const [error, setError] = useState('')
   const [form, setForm] = useState(EMPTY_FORM)
+  const [editingId, setEditingId] = useState(null)
+  const [showInactive, setShowInactive] = useState(false)
 
   async function load() {
     setError('')
     try {
-      setList(await products.list())
+      setList(await products.list(showInactive))
     } catch (err) {
-      setError(err.message)
+      setError(errorMessage(err))
     }
   }
 
   useEffect(() => {
     load()
-  }, [])
+  }, [showInactive])
 
-  async function handleCreate(e) {
+  function startEdit(product) {
+    setEditingId(product.id)
+    setForm({
+      name: product.name,
+      type: product.type,
+      currentPrice: product.currentPrice,
+      stock: '',
+      active: product.active,
+    })
+  }
+
+  function cancelEdit() {
+    setEditingId(null)
+    setForm(EMPTY_FORM)
+  }
+
+  async function handleSubmit(e) {
     e.preventDefault()
     setError('')
     try {
-      await products.create({
-        name: form.name,
-        type: form.type,
-        currentPrice: Number(form.currentPrice),
-        stock: form.stock === '' ? 0 : Number(form.stock),
-      })
+      if (editingId) {
+        await products.update(editingId, {
+          name: form.name,
+          type: form.type,
+          currentPrice: Number(form.currentPrice),
+          active: form.active,
+        })
+      } else {
+        await products.create({
+          name: form.name,
+          type: form.type,
+          currentPrice: Number(form.currentPrice),
+          stock: form.stock === '' ? 0 : Number(form.stock),
+        })
+      }
+      setEditingId(null)
       setForm(EMPTY_FORM)
       load()
     } catch (err) {
-      setError(err.message)
+      setError(errorMessage(err))
     }
   }
 
@@ -57,7 +86,7 @@ function Products({ onLogout }) {
       await products.adjustStock(id, Number(delta), reason)
       load()
     } catch (err) {
-      setError(err.message)
+      setError(errorMessage(err))
     }
   }
 
@@ -67,66 +96,65 @@ function Products({ onLogout }) {
       await products.deactivate(id)
       load()
     } catch (err) {
-      setError(err.message)
+      setError(errorMessage(err))
     }
   }
 
   return (
-    <div className="min-h-screen bg-slate-100 p-6">
-      <div className="max-w-4xl mx-auto">
-        <div className="flex items-center justify-between mb-6">
-          <h1 className="text-2xl font-semibold text-slate-800">Productos y stock</h1>
-          <button
-            onClick={onLogout}
-            className="text-sm text-slate-500 hover:text-slate-800"
-          >
-            Cerrar sesión
-          </button>
+    <div className="max-w-4xl mx-auto">
+      {error && (
+        <p className="bg-red-100 text-red-700 text-sm rounded px-3 py-2 mb-4">{error}</p>
+      )}
+
+      <form
+        onSubmit={handleSubmit}
+        className="bg-white shadow-sm rounded-lg p-4 mb-6 flex flex-wrap gap-3 items-end"
+      >
+        <div>
+          <label className="block text-xs text-slate-500 mb-1">Nombre</label>
+          <input
+            value={form.name}
+            onChange={(e) => setForm({ ...form, name: e.target.value })}
+            required
+            className="border border-slate-300 rounded px-2 py-1"
+          />
         </div>
-
-        {error && (
-          <p className="bg-red-100 text-red-700 text-sm rounded px-3 py-2 mb-4">{error}</p>
-        )}
-
-        <form
-          onSubmit={handleCreate}
-          className="bg-white shadow-sm rounded-lg p-4 mb-6 flex flex-wrap gap-3 items-end"
-        >
-          <div>
-            <label className="block text-xs text-slate-500 mb-1">Nombre</label>
+        <div>
+          <label className="block text-xs text-slate-500 mb-1">Tipo</label>
+          <select
+            value={form.type}
+            onChange={(e) => setForm({ ...form, type: e.target.value })}
+            className="border border-slate-300 rounded px-2 py-1"
+          >
+            {Object.entries(TYPE_LABELS).map(([value, label]) => (
+              <option key={value} value={value}>
+                {label}
+              </option>
+            ))}
+          </select>
+        </div>
+        <div>
+          <label className="block text-xs text-slate-500 mb-1">Precio</label>
+          <input
+            type="number"
+            min="0"
+            step="0.01"
+            value={form.currentPrice}
+            onChange={(e) => setForm({ ...form, currentPrice: e.target.value })}
+            required
+            className="border border-slate-300 rounded px-2 py-1 w-28"
+          />
+        </div>
+        {editingId ? (
+          <label className="flex items-center gap-2 text-sm text-slate-700 pb-1.5">
             <input
-              value={form.name}
-              onChange={(e) => setForm({ ...form, name: e.target.value })}
-              required
-              className="border border-slate-300 rounded px-2 py-1"
+              type="checkbox"
+              checked={form.active}
+              onChange={(e) => setForm({ ...form, active: e.target.checked })}
             />
-          </div>
-          <div>
-            <label className="block text-xs text-slate-500 mb-1">Tipo</label>
-            <select
-              value={form.type}
-              onChange={(e) => setForm({ ...form, type: e.target.value })}
-              className="border border-slate-300 rounded px-2 py-1"
-            >
-              {Object.entries(TYPE_LABELS).map(([value, label]) => (
-                <option key={value} value={value}>
-                  {label}
-                </option>
-              ))}
-            </select>
-          </div>
-          <div>
-            <label className="block text-xs text-slate-500 mb-1">Precio</label>
-            <input
-              type="number"
-              min="0"
-              step="0.01"
-              value={form.currentPrice}
-              onChange={(e) => setForm({ ...form, currentPrice: e.target.value })}
-              required
-              className="border border-slate-300 rounded px-2 py-1 w-28"
-            />
-          </div>
+            Activo
+          </label>
+        ) : (
           <div>
             <label className="block text-xs text-slate-500 mb-1">Stock inicial</label>
             <input
@@ -137,58 +165,90 @@ function Products({ onLogout }) {
               className="border border-slate-300 rounded px-2 py-1 w-24"
             />
           </div>
+        )}
+        <button
+          type="submit"
+          className="bg-slate-800 text-white rounded px-4 py-1.5 hover:bg-slate-700"
+        >
+          {editingId ? 'Guardar cambios' : 'Agregar'}
+        </button>
+        {editingId && (
           <button
-            type="submit"
-            className="bg-slate-800 text-white rounded px-4 py-1.5 hover:bg-slate-700"
+            type="button"
+            onClick={cancelEdit}
+            className="text-sm text-slate-500 hover:text-slate-800 pb-1.5"
           >
-            Agregar
+            Cancelar
           </button>
-        </form>
+        )}
+      </form>
 
-        <div className="bg-white shadow-sm rounded-lg overflow-hidden">
-          <table className="w-full text-sm">
-            <thead className="bg-slate-50 text-slate-500 text-left">
-              <tr>
-                <th className="px-4 py-2">Nombre</th>
-                <th className="px-4 py-2">Tipo</th>
-                <th className="px-4 py-2">Precio</th>
-                <th className="px-4 py-2">Stock</th>
-                <th className="px-4 py-2"></th>
-              </tr>
-            </thead>
-            <tbody>
-              {list.map((p) => (
-                <tr key={p.id} className="border-t border-slate-100">
-                  <td className="px-4 py-2">{p.name}</td>
-                  <td className="px-4 py-2">{TYPE_LABELS[p.type] || p.type}</td>
-                  <td className="px-4 py-2">${Number(p.currentPrice).toLocaleString('es-AR')}</td>
-                  <td className="px-4 py-2">{p.stock}</td>
-                  <td className="px-4 py-2 text-right space-x-3">
-                    <button
-                      onClick={() => handleAdjustStock(p.id)}
-                      className="text-slate-600 hover:text-slate-900"
-                    >
-                      Ajustar stock
-                    </button>
+      <label className="flex items-center gap-2 text-sm text-slate-600 mb-3">
+        <input
+          type="checkbox"
+          checked={showInactive}
+          onChange={(e) => setShowInactive(e.target.checked)}
+        />
+        Mostrar productos dados de baja
+      </label>
+
+      <div className="bg-white shadow-sm rounded-lg overflow-hidden">
+        <table className="w-full text-sm">
+          <thead className="bg-slate-50 text-slate-500 text-left">
+            <tr>
+              <th className="px-4 py-2">Nombre</th>
+              <th className="px-4 py-2">Tipo</th>
+              <th className="px-4 py-2">Precio</th>
+              <th className="px-4 py-2">Stock</th>
+              <th className="px-4 py-2"></th>
+            </tr>
+          </thead>
+          <tbody>
+            {list.map((p) => (
+              <tr
+                key={p.id}
+                className={`border-t border-slate-100 ${!p.active ? 'text-slate-400' : ''}`}
+              >
+                <td className="px-4 py-2">
+                  {p.name}
+                  {!p.active && ' (baja)'}
+                </td>
+                <td className="px-4 py-2">{TYPE_LABELS[p.type] || p.type}</td>
+                <td className="px-4 py-2">${Number(p.currentPrice).toLocaleString('es-AR')}</td>
+                <td className="px-4 py-2">{p.stock}</td>
+                <td className="px-4 py-2 text-right space-x-3">
+                  <button
+                    onClick={() => startEdit(p)}
+                    className="text-slate-600 hover:text-slate-900"
+                  >
+                    Editar
+                  </button>
+                  <button
+                    onClick={() => handleAdjustStock(p.id)}
+                    className="text-slate-600 hover:text-slate-900"
+                  >
+                    Ajustar stock
+                  </button>
+                  {p.active && (
                     <button
                       onClick={() => handleDeactivate(p.id)}
                       className="text-red-600 hover:text-red-800"
                     >
                       Dar de baja
                     </button>
-                  </td>
-                </tr>
-              ))}
-              {list.length === 0 && (
-                <tr>
-                  <td colSpan={5} className="px-4 py-6 text-center text-slate-400">
-                    No hay productos cargados todavía.
-                  </td>
-                </tr>
-              )}
-            </tbody>
-          </table>
-        </div>
+                  )}
+                </td>
+              </tr>
+            ))}
+            {list.length === 0 && (
+              <tr>
+                <td colSpan={5} className="px-4 py-6 text-center text-slate-400">
+                  No hay productos cargados todavía.
+                </td>
+              </tr>
+            )}
+          </tbody>
+        </table>
       </div>
     </div>
   )
