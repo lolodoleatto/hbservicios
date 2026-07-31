@@ -1,12 +1,21 @@
+import { useState } from 'react'
+import { auth } from './api'
+import Login from './Login'
+import Products from './Products'
+
 function App() {
-  return (
-    <div className="min-h-screen flex items-center justify-center bg-slate-100">
-      <div className="text-center">
-        <h1 className="text-3xl font-semibold text-slate-800">HB Servicios</h1>
-        <p className="mt-2 text-slate-500">Sistema de gestión — en construcción</p>
-      </div>
-    </div>
-  )
+  const [loggedIn, setLoggedIn] = useState(auth.isLoggedIn())
+
+  function handleLogout() {
+    auth.logout()
+    setLoggedIn(false)
+  }
+
+  if (!loggedIn) {
+    return <Login onLogin={() => setLoggedIn(true)} />
+  }
+
+  return <Products onLogout={handleLogout} />
 }
 
 export default App

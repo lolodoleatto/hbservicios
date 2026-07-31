@@ -9,6 +9,7 @@ import {
   Post,
   Query,
 } from '@nestjs/common';
+import { ApiBearerAuth, ApiQuery, ApiTags } from '@nestjs/swagger';
 import { ProductsService } from './products.service';
 import { CreateProductDto } from './dto/create-product.dto';
 import { UpdateProductDto } from './dto/update-product.dto';
@@ -16,6 +17,8 @@ import { AdjustStockDto } from './dto/adjust-stock.dto';
 import { Roles } from '../auth/decorators/roles.decorator';
 import { UserRole } from '../users/entities/user.entity';
 
+@ApiTags('products')
+@ApiBearerAuth('access-token')
 @Roles(UserRole.ADMIN)
 @Controller('products')
 export class ProductsController {
@@ -26,6 +29,12 @@ export class ProductsController {
     return this.productsService.create(dto);
   }
 
+  @ApiQuery({
+    name: 'includeInactive',
+    required: false,
+    type: Boolean,
+    description: 'Si es "true", incluye también los productos dados de baja.',
+  })
   @Get()
   findAll(@Query('includeInactive') includeInactive?: string) {
     return this.productsService.findAll(includeInactive === 'true');
