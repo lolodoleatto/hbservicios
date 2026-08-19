@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react'
+import { CheckCircle2, PackagePlus, Pencil, Plus, Save, Trash2, Users, X } from 'lucide-react'
 import { clients, errorMessage, products } from './api'
 
 const EMPTY_FORM = { name: '', phone: '', address: '', email: '', active: true }
@@ -117,7 +118,9 @@ function Clients() {
   return (
     <div className="max-w-4xl mx-auto">
       {error && (
-        <p className="bg-red-100 text-red-700 text-sm rounded px-3 py-2 mb-4">{error}</p>
+        <p className="bg-red-100 text-red-700 text-sm rounded px-3 py-2 mb-4 animate-fade-in-fast">
+          {error}
+        </p>
       )}
 
       <form
@@ -130,7 +133,7 @@ function Clients() {
             value={form.name}
             onChange={(e) => setForm({ ...form, name: e.target.value })}
             required
-            className="border border-slate-300 rounded px-2 py-1"
+            className="border border-slate-300 rounded px-2 py-1 transition-shadow focus:outline-none focus:ring-2 focus:ring-brand-red/30 focus:border-brand-red"
           />
         </div>
         <div>
@@ -138,7 +141,7 @@ function Clients() {
           <input
             value={form.phone}
             onChange={(e) => setForm({ ...form, phone: e.target.value })}
-            className="border border-slate-300 rounded px-2 py-1"
+            className="border border-slate-300 rounded px-2 py-1 transition-shadow focus:outline-none focus:ring-2 focus:ring-brand-red/30 focus:border-brand-red"
           />
         </div>
         <div>
@@ -146,7 +149,7 @@ function Clients() {
           <input
             value={form.address}
             onChange={(e) => setForm({ ...form, address: e.target.value })}
-            className="border border-slate-300 rounded px-2 py-1"
+            className="border border-slate-300 rounded px-2 py-1 transition-shadow focus:outline-none focus:ring-2 focus:ring-brand-red/30 focus:border-brand-red"
           />
         </div>
         <div>
@@ -155,7 +158,7 @@ function Clients() {
             type="email"
             value={form.email}
             onChange={(e) => setForm({ ...form, email: e.target.value })}
-            className="border border-slate-300 rounded px-2 py-1"
+            className="border border-slate-300 rounded px-2 py-1 transition-shadow focus:outline-none focus:ring-2 focus:ring-brand-red/30 focus:border-brand-red"
           />
         </div>
         {editingId && (
@@ -170,16 +173,18 @@ function Clients() {
         )}
         <button
           type="submit"
-          className="bg-slate-800 text-white rounded px-4 py-1.5 hover:bg-slate-700"
+          className="inline-flex items-center gap-1.5 bg-brand-red text-white rounded px-4 py-1.5 hover:bg-brand-red-dark transition-all active:scale-95"
         >
+          {editingId ? <Save size={15} /> : <Plus size={15} />}
           {editingId ? 'Guardar cambios' : 'Agregar'}
         </button>
         {editingId && (
           <button
             type="button"
             onClick={cancelEdit}
-            className="text-sm text-slate-500 hover:text-slate-800 pb-1.5"
+            className="inline-flex items-center gap-1 text-sm text-slate-500 hover:text-slate-800 pb-1.5 transition-colors"
           >
+            <X size={15} />
             Cancelar
           </button>
         )}
@@ -195,6 +200,7 @@ function Clients() {
       </label>
 
       <div className="bg-white shadow-sm rounded-lg overflow-hidden mb-6">
+        <div className="overflow-x-auto">
         <table className="w-full text-sm">
           <thead className="bg-slate-50 text-slate-500 text-left">
             <tr>
@@ -208,7 +214,7 @@ function Clients() {
             {list.map((c) => (
               <tr
                 key={c.id}
-                className={`border-t border-slate-100 ${!c.active ? 'text-slate-400' : ''}`}
+                className={`border-t border-slate-100 transition-colors hover:bg-slate-50 ${!c.active ? 'text-slate-400' : ''}`}
               >
                 <td className="px-4 py-2">
                   {c.name}
@@ -216,25 +222,31 @@ function Clients() {
                 </td>
                 <td className="px-4 py-2">{c.phone || '-'}</td>
                 <td className="px-4 py-2">{c.address || '-'}</td>
-                <td className="px-4 py-2 text-right space-x-3">
+                <td className="px-4 py-2 text-right space-x-3 whitespace-nowrap">
                   <button
                     onClick={() => startEdit(c)}
-                    className="text-slate-600 hover:text-slate-900"
+                    title="Editar"
+                    aria-label="Editar"
+                    className="text-slate-600 hover:text-brand-red transition-colors"
                   >
-                    Editar
+                    <Pencil size={16} />
                   </button>
                   <button
                     onClick={() => setSelectedClientId(String(c.id))}
-                    className="text-slate-600 hover:text-slate-900"
+                    title="Ver préstamos"
+                    aria-label="Ver préstamos"
+                    className="text-slate-600 hover:text-brand-red transition-colors"
                   >
-                    Ver préstamos
+                    <PackagePlus size={16} />
                   </button>
                   {c.active && (
                     <button
                       onClick={() => handleDeactivate(c.id)}
-                      className="text-red-600 hover:text-red-800"
+                      title="Dar de baja"
+                      aria-label="Dar de baja"
+                      className="text-red-600 hover:text-red-800 transition-colors"
                     >
-                      Dar de baja
+                      <Trash2 size={16} />
                     </button>
                   )}
                 </td>
@@ -249,15 +261,19 @@ function Clients() {
             )}
           </tbody>
         </table>
+        </div>
       </div>
 
       <div className="bg-white shadow-sm rounded-lg p-4">
         <div className="flex items-center gap-3 mb-4">
-          <h2 className="text-lg font-semibold text-slate-800">Préstamo de envases</h2>
+          <h2 className="flex items-center gap-2 text-lg font-semibold text-slate-800">
+            <Users size={18} className="text-brand-red" />
+            Préstamo de envases
+          </h2>
           <select
             value={selectedClientId}
             onChange={(e) => setSelectedClientId(e.target.value)}
-            className="border border-slate-300 rounded px-2 py-1 text-sm"
+            className="border border-slate-300 rounded px-2 py-1 text-sm transition-shadow focus:outline-none focus:ring-2 focus:ring-brand-red/30 focus:border-brand-red"
           >
             <option value="">Seleccionar cliente...</option>
             {list.map((c) => (
@@ -269,7 +285,7 @@ function Clients() {
         </div>
 
         {selectedClientId && (
-          <>
+          <div className="animate-fade-in">
             <form
               onSubmit={handleCreateLoan}
               className="flex flex-wrap gap-3 items-end mb-4"
@@ -280,7 +296,7 @@ function Clients() {
                   value={loanForm.productId}
                   onChange={(e) => setLoanForm({ ...loanForm, productId: e.target.value })}
                   required
-                  className="border border-slate-300 rounded px-2 py-1"
+                  className="border border-slate-300 rounded px-2 py-1 transition-shadow focus:outline-none focus:ring-2 focus:ring-brand-red/30 focus:border-brand-red"
                 >
                   <option value="">Seleccionar...</option>
                   {productList.map((p) => (
@@ -298,7 +314,7 @@ function Clients() {
                   value={loanForm.quantity}
                   onChange={(e) => setLoanForm({ ...loanForm, quantity: e.target.value })}
                   required
-                  className="border border-slate-300 rounded px-2 py-1 w-20"
+                  className="border border-slate-300 rounded px-2 py-1 w-20 transition-shadow focus:outline-none focus:ring-2 focus:ring-brand-red/30 focus:border-brand-red"
                 />
               </div>
               <div>
@@ -306,17 +322,19 @@ function Clients() {
                 <input
                   value={loanForm.notes}
                   onChange={(e) => setLoanForm({ ...loanForm, notes: e.target.value })}
-                  className="border border-slate-300 rounded px-2 py-1"
+                  className="border border-slate-300 rounded px-2 py-1 transition-shadow focus:outline-none focus:ring-2 focus:ring-brand-red/30 focus:border-brand-red"
                 />
               </div>
               <button
                 type="submit"
-                className="bg-slate-800 text-white rounded px-4 py-1.5 hover:bg-slate-700"
+                className="inline-flex items-center gap-1.5 bg-brand-red text-white rounded px-4 py-1.5 hover:bg-brand-red-dark transition-all active:scale-95"
               >
+                <PackagePlus size={15} />
                 Registrar préstamo
               </button>
             </form>
 
+            <div className="overflow-x-auto">
             <table className="w-full text-sm">
               <thead className="bg-slate-50 text-slate-500 text-left">
                 <tr>
@@ -328,16 +346,18 @@ function Clients() {
               </thead>
               <tbody>
                 {loans.map((l) => (
-                  <tr key={l.id} className="border-t border-slate-100">
+                  <tr key={l.id} className="border-t border-slate-100 transition-colors hover:bg-slate-50">
                     <td className="px-4 py-2">{l.product?.name}</td>
                     <td className="px-4 py-2">{l.quantity}</td>
                     <td className="px-4 py-2">{l.notes || '-'}</td>
-                    <td className="px-4 py-2 text-right">
+                    <td className="px-4 py-2 text-right whitespace-nowrap">
                       <button
                         onClick={() => handleReturnLoan(l.id)}
-                        className="text-slate-600 hover:text-slate-900"
+                        title="Marcar devuelto"
+                        aria-label="Marcar devuelto"
+                        className="text-slate-600 hover:text-brand-red transition-colors"
                       >
-                        Marcar devuelto
+                        <CheckCircle2 size={16} />
                       </button>
                     </td>
                   </tr>
@@ -351,7 +371,8 @@ function Clients() {
                 )}
               </tbody>
             </table>
-          </>
+            </div>
+          </div>
         )}
       </div>
     </div>

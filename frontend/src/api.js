@@ -178,3 +178,45 @@ export const orders = {
     return { synced, failed, remaining: pending.length - synced }
   },
 }
+
+export const expenses = {
+  list() {
+    return request('/expenses')
+  },
+  create(dto) {
+    return request('/expenses', { method: 'POST', body: JSON.stringify(dto) })
+  },
+}
+
+function toQuery(params) {
+  const usp = new URLSearchParams()
+  for (const [key, value] of Object.entries(params)) {
+    if (value !== undefined && value !== '') usp.set(key, value)
+  }
+  const qs = usp.toString()
+  return qs ? `?${qs}` : ''
+}
+
+export const reports = {
+  sales(from, to) {
+    return request(`/reports/sales${toQuery({ from, to })}`)
+  },
+  stockMovements(productId, from, to) {
+    return request(`/reports/stock-movements${toQuery({ productId, from, to })}`)
+  },
+  balance(from, to) {
+    return request(`/reports/balance${toQuery({ from, to })}`)
+  },
+  fireExtinguisherAlerts(daysAhead) {
+    return request(`/reports/fire-extinguisher-alerts${toQuery({ daysAhead })}`)
+  },
+}
+
+export const fireExtinguishers = {
+  list() {
+    return request('/fire-extinguishers')
+  },
+  create(dto) {
+    return request('/fire-extinguishers', { method: 'POST', body: JSON.stringify(dto) })
+  },
+}

@@ -1,14 +1,27 @@
 import { useState } from 'react'
+import { Package, Users, ClipboardList, Receipt, FireExtinguisher, BarChart3, LogOut } from 'lucide-react'
 import { auth } from './api'
 import Login from './Login'
 import Products from './Products'
 import Clients from './Clients'
 import Orders from './Orders'
+import Expenses from './Expenses'
+import Reports from './Reports'
+import FireExtinguishers from './FireExtinguishers'
+import Sidebar from './Sidebar'
+import BottomNav from './BottomNav'
 
 const TABS = {
-  products: { label: 'Productos', Component: Products },
-  clients: { label: 'Clientes', Component: Clients },
-  orders: { label: 'Pedidos', Component: Orders },
+  products: { label: 'Productos', Icon: Package, Component: Products },
+  clients: { label: 'Clientes', Icon: Users, Component: Clients },
+  orders: { label: 'Pedidos', Icon: ClipboardList, Component: Orders },
+  expenses: { label: 'Gastos', Icon: Receipt, Component: Expenses },
+  fireExtinguishers: {
+    label: 'Matafuegos',
+    Icon: FireExtinguisher,
+    Component: FireExtinguishers,
+  },
+  reports: { label: 'Reportes', Icon: BarChart3, Component: Reports },
 }
 
 function App() {
@@ -24,33 +37,33 @@ function App() {
     return <Login onLogin={() => setLoggedIn(true)} />
   }
 
-  const { Component } = TABS[tab]
+  const { Component, label } = TABS[tab]
 
   return (
-    <div className="min-h-screen bg-slate-100 p-6">
-      <div className="max-w-4xl mx-auto flex items-center justify-between mb-6">
-        <div className="flex gap-4">
-          {Object.entries(TABS).map(([key, { label }]) => (
-            <button
-              key={key}
-              onClick={() => setTab(key)}
-              className={`text-lg font-semibold ${
-                tab === key ? 'text-slate-800' : 'text-slate-400 hover:text-slate-600'
-              }`}
-            >
+    <div className="min-h-screen bg-brand-gray">
+      <Sidebar tabs={TABS} active={tab} onSelect={setTab} onLogout={handleLogout} />
+
+      <div className="md:pl-60">
+        <header className="md:hidden sticky top-0 z-20 bg-brand-black text-white px-4 py-3 flex items-center justify-between">
+          <div>
+            <p className="text-xs text-white/40 leading-none">HB Servicios</p>
+            <h1 key={tab} className="text-base font-semibold leading-tight animate-fade-in-fast">
               {label}
-            </button>
-          ))}
-        </div>
-        <button
-          onClick={handleLogout}
-          className="text-sm text-slate-500 hover:text-slate-800"
-        >
-          Cerrar sesión
-        </button>
+            </h1>
+          </div>
+          <button onClick={handleLogout} aria-label="Cerrar sesión" className="text-white/70 p-2 -mr-2">
+            <LogOut size={20} />
+          </button>
+        </header>
+
+        <main className="p-4 md:p-8 pb-24 md:pb-8">
+          <div key={tab} className="animate-fade-in">
+            <Component />
+          </div>
+        </main>
       </div>
 
-      <Component />
+      <BottomNav tabs={TABS} active={tab} onSelect={setTab} />
     </div>
   )
 }

@@ -1,4 +1,17 @@
 import { Fragment, useEffect, useState } from 'react'
+import {
+  ChevronDown,
+  ClipboardCheck,
+  Clock,
+  Download,
+  Plus,
+  RefreshCw,
+  Share2,
+  Trash2,
+  Wifi,
+  WifiOff,
+  X,
+} from 'lucide-react'
 import { clients, errorMessage, orders, products } from './api'
 
 const EMPTY_ITEM = { productId: '', quantity: '1' }
@@ -189,41 +202,48 @@ function Orders() {
             isOnline ? 'text-emerald-700' : 'text-amber-700'
           }`}
         >
-          <span
-            className={`w-2 h-2 rounded-full ${isOnline ? 'bg-emerald-500' : 'bg-amber-500'}`}
-          />
+          {isOnline ? (
+            <Wifi size={16} />
+          ) : (
+            <WifiOff size={16} className="animate-pulse" />
+          )}
           {isOnline ? 'En línea' : 'Sin conexión'}
         </span>
         {pending.length > 0 && (
           <button
             onClick={handleSync}
             disabled={syncing || !isOnline}
-            className="text-sm bg-slate-800 text-white rounded px-3 py-1 hover:bg-slate-700 disabled:opacity-50"
+            className="inline-flex items-center gap-1.5 text-sm bg-brand-red text-white rounded px-3 py-1 hover:bg-brand-red-dark transition-all active:scale-95 disabled:opacity-50"
           >
+            <RefreshCw size={14} className={syncing ? 'animate-spin' : ''} />
             {syncing ? 'Sincronizando...' : `Sincronizar ahora (${pending.length})`}
           </button>
         )}
       </div>
 
       {error && (
-        <p className="bg-red-100 text-red-700 text-sm rounded px-3 py-2 mb-4">{error}</p>
+        <p className="bg-red-100 text-red-700 text-sm rounded px-3 py-2 mb-4 animate-fade-in-fast">
+          {error}
+        </p>
       )}
       {offlineNotice && (
-        <p className="bg-amber-100 text-amber-800 text-sm rounded px-3 py-2 mb-4">
+        <p className="bg-amber-100 text-amber-800 text-sm rounded px-3 py-2 mb-4 animate-fade-in-fast">
           {offlineNotice}
         </p>
       )}
       {syncMessage && (
-        <p className="bg-slate-100 text-slate-700 text-sm rounded px-3 py-2 mb-4">
+        <p className="bg-slate-100 text-slate-700 text-sm rounded px-3 py-2 mb-4 animate-fade-in-fast">
           {syncMessage}
         </p>
       )}
 
       {pending.length > 0 && (
-        <div className="bg-white shadow-sm rounded-lg overflow-hidden mb-6">
-          <div className="px-4 py-2 bg-amber-50 text-amber-800 text-sm font-semibold">
+        <div className="bg-white shadow-sm rounded-lg overflow-hidden mb-6 animate-fade-in">
+          <div className="flex items-center gap-2 px-4 py-2 bg-amber-50 text-amber-800 text-sm font-semibold">
+            <Clock size={14} />
             Pedidos pendientes de sincronizar
           </div>
+          <div className="overflow-x-auto">
           <table className="w-full text-sm">
             <thead className="bg-slate-50 text-slate-500 text-left">
               <tr>
@@ -235,7 +255,7 @@ function Orders() {
             </thead>
             <tbody>
               {pending.map((p) => (
-                <tr key={p.localId} className="border-t border-slate-100">
+                <tr key={p.localId} className="border-t border-slate-100 transition-colors hover:bg-slate-50">
                   <td className="px-4 py-2">
                     {clientList.find((c) => c.id === p.payload.clientId)?.name ||
                       'Consumidor final'}
@@ -244,18 +264,21 @@ function Orders() {
                   <td className="px-4 py-2">
                     {new Date(p.createdAt).toLocaleString('es-AR')}
                   </td>
-                  <td className="px-4 py-2 text-right">
+                  <td className="px-4 py-2 text-right whitespace-nowrap">
                     <button
                       onClick={() => handleDiscardPending(p.localId)}
-                      className="text-red-600 hover:text-red-800"
+                      title="Descartar"
+                      aria-label="Descartar"
+                      className="text-red-600 hover:text-red-800 transition-colors"
                     >
-                      Descartar
+                      <Trash2 size={16} />
                     </button>
                   </td>
                 </tr>
               ))}
             </tbody>
           </table>
+          </div>
         </div>
       )}
 
@@ -266,7 +289,7 @@ function Orders() {
             <select
               value={clientId}
               onChange={(e) => setClientId(e.target.value)}
-              className="border border-slate-300 rounded px-2 py-1"
+              className="border border-slate-300 rounded px-2 py-1 transition-shadow focus:outline-none focus:ring-2 focus:ring-brand-red/30 focus:border-brand-red"
             >
               <option value="">Consumidor final</option>
               {clientList.map((c) => (
@@ -284,7 +307,7 @@ function Orders() {
               step="0.01"
               value={discount}
               onChange={(e) => setDiscount(e.target.value)}
-              className="border border-slate-300 rounded px-2 py-1 w-28"
+              className="border border-slate-300 rounded px-2 py-1 w-28 transition-shadow focus:outline-none focus:ring-2 focus:ring-brand-red/30 focus:border-brand-red"
             />
           </div>
           <div>
@@ -295,21 +318,21 @@ function Orders() {
               step="0.01"
               value={shippingCost}
               onChange={(e) => setShippingCost(e.target.value)}
-              className="border border-slate-300 rounded px-2 py-1 w-28"
+              className="border border-slate-300 rounded px-2 py-1 w-28 transition-shadow focus:outline-none focus:ring-2 focus:ring-brand-red/30 focus:border-brand-red"
             />
           </div>
         </div>
 
         <div className="space-y-2 mb-3">
           {items.map((item, i) => (
-            <div key={i} className="flex gap-3 items-end">
+            <div key={i} className="flex gap-3 items-end animate-fade-in-fast">
               <div>
                 <label className="block text-xs text-slate-500 mb-1">Producto</label>
                 <select
                   value={item.productId}
                   onChange={(e) => updateItem(i, 'productId', e.target.value)}
                   required
-                  className="border border-slate-300 rounded px-2 py-1"
+                  className="border border-slate-300 rounded px-2 py-1 transition-shadow focus:outline-none focus:ring-2 focus:ring-brand-red/30 focus:border-brand-red"
                 >
                   <option value="">Seleccionar...</option>
                   {productList.map((p) => (
@@ -327,15 +350,16 @@ function Orders() {
                   value={item.quantity}
                   onChange={(e) => updateItem(i, 'quantity', e.target.value)}
                   required
-                  className="border border-slate-300 rounded px-2 py-1 w-20"
+                  className="border border-slate-300 rounded px-2 py-1 w-20 transition-shadow focus:outline-none focus:ring-2 focus:ring-brand-red/30 focus:border-brand-red"
                 />
               </div>
               {items.length > 1 && (
                 <button
                   type="button"
                   onClick={() => removeItem(i)}
-                  className="text-red-600 hover:text-red-800 text-sm pb-1"
+                  className="inline-flex items-center gap-1 text-red-600 hover:text-red-800 text-sm pb-1.5 transition-colors"
                 >
+                  <X size={14} />
                   Quitar
                 </button>
               )}
@@ -359,14 +383,14 @@ function Orders() {
             </p>
           )}
           {includeLoan && (
-            <div className="flex flex-wrap gap-3 items-end">
+            <div className="flex flex-wrap gap-3 items-end animate-fade-in">
               <div>
                 <label className="block text-xs text-slate-500 mb-1">Producto prestado</label>
                 <select
                   value={loan.productId}
                   onChange={(e) => setLoan({ ...loan, productId: e.target.value })}
                   required
-                  className="border border-slate-300 rounded px-2 py-1"
+                  className="border border-slate-300 rounded px-2 py-1 transition-shadow focus:outline-none focus:ring-2 focus:ring-brand-red/30 focus:border-brand-red"
                 >
                   <option value="">Seleccionar...</option>
                   {productList.map((p) => (
@@ -384,7 +408,7 @@ function Orders() {
                   value={loan.quantity}
                   onChange={(e) => setLoan({ ...loan, quantity: e.target.value })}
                   required
-                  className="border border-slate-300 rounded px-2 py-1 w-20"
+                  className="border border-slate-300 rounded px-2 py-1 w-20 transition-shadow focus:outline-none focus:ring-2 focus:ring-brand-red/30 focus:border-brand-red"
                 />
               </div>
               <div>
@@ -392,7 +416,7 @@ function Orders() {
                 <input
                   value={loan.notes}
                   onChange={(e) => setLoan({ ...loan, notes: e.target.value })}
-                  className="border border-slate-300 rounded px-2 py-1"
+                  className="border border-slate-300 rounded px-2 py-1 transition-shadow focus:outline-none focus:ring-2 focus:ring-brand-red/30 focus:border-brand-red"
                 />
               </div>
             </div>
@@ -403,20 +427,23 @@ function Orders() {
           <button
             type="button"
             onClick={addItem}
-            className="text-sm text-slate-600 hover:text-slate-900"
+            className="inline-flex items-center gap-1 text-sm text-slate-600 hover:text-brand-red transition-colors"
           >
-            + Agregar línea
+            <Plus size={15} />
+            Agregar línea
           </button>
           <button
             type="submit"
-            className="bg-slate-800 text-white rounded px-4 py-1.5 hover:bg-slate-700"
+            className="inline-flex items-center gap-1.5 bg-brand-red text-white rounded px-4 py-1.5 hover:bg-brand-red-dark transition-all active:scale-95"
           >
+            <ClipboardCheck size={15} />
             Registrar pedido
           </button>
         </div>
       </form>
 
       <div className="bg-white shadow-sm rounded-lg overflow-hidden">
+        <div className="overflow-x-auto">
         <table className="w-full text-sm">
           <thead className="bg-slate-50 text-slate-500 text-left">
             <tr>
@@ -429,77 +456,91 @@ function Orders() {
             </tr>
           </thead>
           <tbody>
-            {list.map((o) => (
-              <Fragment key={o.id}>
-                <tr className="border-t border-slate-100">
-                  <td className="px-4 py-2">#{o.orderNumber}</td>
-                  <td className="px-4 py-2">{o.client?.name || 'Consumidor final'}</td>
-                  <td className="px-4 py-2">
-                    ${Number(o.discount).toLocaleString('es-AR')}
-                  </td>
-                  <td className="px-4 py-2">
-                    ${Number(o.shippingCost).toLocaleString('es-AR')}
-                  </td>
-                  <td className="px-4 py-2">${Number(o.total).toLocaleString('es-AR')}</td>
-                  <td className="px-4 py-2 text-right space-x-3">
-                    <button
-                      onClick={() => setExpandedId(expandedId === o.id ? null : o.id)}
-                      className="text-slate-600 hover:text-slate-900"
-                    >
-                      {expandedId === o.id ? 'Ocultar' : 'Ver detalle'}
-                    </button>
-                    <button
-                      onClick={() => handleDownloadPdf(o)}
-                      className="text-slate-600 hover:text-slate-900"
-                    >
-                      Descargar remito
-                    </button>
-                    <button
-                      onClick={() => handleSharePdf(o)}
-                      className="text-emerald-600 hover:text-emerald-800"
-                    >
-                      Compartir por WhatsApp
-                    </button>
-                  </td>
-                </tr>
-                {expandedId === o.id && (
-                  <tr className="bg-slate-50 border-t border-slate-100">
-                    <td colSpan={6} className="px-4 py-3">
-                      <table className="w-full text-xs">
-                        <thead className="text-slate-500 text-left">
-                          <tr>
-                            <th className="pr-4 py-1">Producto</th>
-                            <th className="pr-4 py-1">Cantidad</th>
-                            <th className="pr-4 py-1">Precio unit.</th>
-                            <th className="pr-4 py-1">Subtotal</th>
-                            <th className="pr-4 py-1">Vence</th>
-                          </tr>
-                        </thead>
-                        <tbody>
-                          {o.items.map((it) => (
-                            <tr key={it.id}>
-                              <td className="pr-4 py-1">{it.product?.name}</td>
-                              <td className="pr-4 py-1">{it.quantity}</td>
-                              <td className="pr-4 py-1">
-                                ${Number(it.unitPrice).toLocaleString('es-AR')}
-                              </td>
-                              <td className="pr-4 py-1">
-                                ${Number(it.subtotal).toLocaleString('es-AR')}
-                              </td>
-                              <td className="pr-4 py-1">
-                                {it.expiresAt
-                                  ? new Date(it.expiresAt).toLocaleDateString('es-AR')
-                                  : '-'}
-                              </td>
-                            </tr>
-                          ))}
-                        </tbody>
-                      </table>
+            {list.map((o) => {
+              const isExpanded = expandedId === o.id
+              return (
+                <Fragment key={o.id}>
+                  <tr className="border-t border-slate-100 transition-colors hover:bg-slate-50">
+                    <td className="px-4 py-2">#{o.orderNumber}</td>
+                    <td className="px-4 py-2">{o.client?.name || 'Consumidor final'}</td>
+                    <td className="px-4 py-2">
+                      ${Number(o.discount).toLocaleString('es-AR')}
+                    </td>
+                    <td className="px-4 py-2">
+                      ${Number(o.shippingCost).toLocaleString('es-AR')}
+                    </td>
+                    <td className="px-4 py-2">${Number(o.total).toLocaleString('es-AR')}</td>
+                    <td className="px-4 py-2 text-right space-x-3 whitespace-nowrap">
+                      <button
+                        onClick={() => setExpandedId(isExpanded ? null : o.id)}
+                        title={isExpanded ? 'Ocultar' : 'Ver detalle'}
+                        aria-label={isExpanded ? 'Ocultar' : 'Ver detalle'}
+                        className="text-slate-600 hover:text-brand-red transition-colors"
+                      >
+                        <ChevronDown
+                          size={16}
+                          className={`transition-transform duration-200 ${isExpanded ? 'rotate-180' : ''}`}
+                        />
+                      </button>
+                      <button
+                        onClick={() => handleDownloadPdf(o)}
+                        title="Descargar remito"
+                        aria-label="Descargar remito"
+                        className="text-slate-600 hover:text-brand-red transition-colors"
+                      >
+                        <Download size={16} />
+                      </button>
+                      <button
+                        onClick={() => handleSharePdf(o)}
+                        title="Compartir por WhatsApp"
+                        aria-label="Compartir por WhatsApp"
+                        className="text-emerald-600 hover:text-emerald-800 transition-colors"
+                      >
+                        <Share2 size={16} />
+                      </button>
                     </td>
                   </tr>
-                )}
-              </Fragment>
-            ))}
+                  {isExpanded && (
+                    <tr className="bg-slate-50 border-t border-slate-100">
+                      <td colSpan={6} className="px-4 py-3">
+                        <div className="animate-fade-in overflow-x-auto">
+                          <table className="w-full text-xs">
+                            <thead className="text-slate-500 text-left">
+                              <tr>
+                                <th className="pr-4 py-1">Producto</th>
+                                <th className="pr-4 py-1">Cantidad</th>
+                                <th className="pr-4 py-1">Precio unit.</th>
+                                <th className="pr-4 py-1">Subtotal</th>
+                                <th className="pr-4 py-1">Vence</th>
+                              </tr>
+                            </thead>
+                            <tbody>
+                              {o.items.map((it) => (
+                                <tr key={it.id}>
+                                  <td className="pr-4 py-1">{it.product?.name}</td>
+                                  <td className="pr-4 py-1">{it.quantity}</td>
+                                  <td className="pr-4 py-1">
+                                    ${Number(it.unitPrice).toLocaleString('es-AR')}
+                                  </td>
+                                  <td className="pr-4 py-1">
+                                    ${Number(it.subtotal).toLocaleString('es-AR')}
+                                  </td>
+                                  <td className="pr-4 py-1">
+                                    {it.expiresAt
+                                      ? new Date(it.expiresAt).toLocaleDateString('es-AR')
+                                      : '-'}
+                                  </td>
+                                </tr>
+                              ))}
+                            </tbody>
+                          </table>
+                        </div>
+                      </td>
+                    </tr>
+                  )}
+                </Fragment>
+              )
+            })}
             {list.length === 0 && (
               <tr>
                 <td colSpan={6} className="px-4 py-6 text-center text-slate-400">
@@ -509,6 +550,7 @@ function Orders() {
             )}
           </tbody>
         </table>
+        </div>
       </div>
     </div>
   )

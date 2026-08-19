@@ -9,6 +9,8 @@ import { ClientsModule } from './clients/clients.module';
 import { ProductsModule } from './products/products.module';
 import { OrdersModule } from './orders/orders.module';
 import { ExpensesModule } from './expenses/expenses.module';
+import { ReportsModule } from './reports/reports.module';
+import { FireExtinguishersModule } from './fire-extinguishers/fire-extinguishers.module';
 import { AuthModule } from './auth/auth.module';
 import { JwtAuthGuard } from './auth/guards/jwt-auth.guard';
 import { RolesGuard } from './auth/guards/roles.guard';
@@ -28,6 +30,7 @@ import { RolesGuard } from './auth/guards/roles.guard';
         username: config.get<string>('DB_USERNAME'),
         password: config.get<string>('DB_PASSWORD'),
         database: config.get<string>('DB_DATABASE'),
+        charset: 'utf8mb4',
         autoLoadEntities: true,
         synchronize: true,
       }),
@@ -37,6 +40,8 @@ import { RolesGuard } from './auth/guards/roles.guard';
     ProductsModule,
     OrdersModule,
     ExpensesModule,
+    ReportsModule,
+    FireExtinguishersModule,
     AuthModule,
   ],
   controllers: [AppController],

@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import { FireExtinguisher, Loader2, Lock, Mail } from 'lucide-react'
 import { auth } from './api'
 
 function Login({ onLogin }) {
@@ -22,39 +23,54 @@ function Login({ onLogin }) {
   }
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-slate-100">
+    <div className="relative min-h-screen flex items-center justify-center bg-brand-black px-4 overflow-hidden">
+      <div className="pointer-events-none absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2">
+        <div className="w-[420px] h-[420px] rounded-full bg-brand-red/30 blur-[110px] animate-pulse" />
+        <div className="absolute inset-0 m-auto w-[220px] h-[220px] rounded-full bg-brand-red/40 blur-[70px]" />
+      </div>
+
       <form
         onSubmit={handleSubmit}
-        className="bg-white shadow-md rounded-lg p-8 w-full max-w-sm"
+        className="relative bg-white shadow-2xl shadow-brand-red/20 rounded-2xl p-8 w-full max-w-sm animate-pop"
       >
-        <h1 className="text-2xl font-semibold text-slate-800 mb-1">HB Servicios</h1>
+        <div className="w-12 h-12 rounded-xl bg-brand-red/10 flex items-center justify-center mb-4">
+          <FireExtinguisher size={24} className="text-brand-red" strokeWidth={2} />
+        </div>
+        <h1 className="text-2xl font-semibold text-brand-black mb-1">HB Servicios</h1>
         <p className="text-slate-500 mb-6">Iniciar sesión</p>
 
         <label className="block text-sm text-slate-600 mb-1">Email</label>
-        <input
-          type="email"
-          value={email}
-          onChange={(e) => setEmail(e.target.value)}
-          required
-          className="w-full border border-slate-300 rounded px-3 py-2 mb-4 focus:outline-none focus:ring-2 focus:ring-slate-400"
-        />
+        <div className="relative mb-4">
+          <Mail size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
+          <input
+            type="email"
+            value={email}
+            onChange={(e) => setEmail(e.target.value)}
+            required
+            className="w-full border border-slate-300 rounded-lg pl-9 pr-3 py-2 transition-shadow focus:outline-none focus:ring-2 focus:ring-brand-red/40 focus:border-brand-red"
+          />
+        </div>
 
         <label className="block text-sm text-slate-600 mb-1">Contraseña</label>
-        <input
-          type="password"
-          value={password}
-          onChange={(e) => setPassword(e.target.value)}
-          required
-          className="w-full border border-slate-300 rounded px-3 py-2 mb-4 focus:outline-none focus:ring-2 focus:ring-slate-400"
-        />
+        <div className="relative mb-4">
+          <Lock size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
+          <input
+            type="password"
+            value={password}
+            onChange={(e) => setPassword(e.target.value)}
+            required
+            className="w-full border border-slate-300 rounded-lg pl-9 pr-3 py-2 transition-shadow focus:outline-none focus:ring-2 focus:ring-brand-red/40 focus:border-brand-red"
+          />
+        </div>
 
-        {error && <p className="text-red-600 text-sm mb-4">{error}</p>}
+        {error && <p className="text-red-600 text-sm mb-4 animate-fade-in-fast">{error}</p>}
 
         <button
           type="submit"
           disabled={loading}
-          className="w-full bg-slate-800 text-white rounded px-3 py-2 hover:bg-slate-700 disabled:opacity-50"
+          className="w-full flex items-center justify-center gap-2 bg-brand-red text-white rounded-lg px-3 py-2 font-medium hover:bg-brand-red-dark transition-all active:scale-[0.98] disabled:opacity-60"
         >
+          {loading && <Loader2 size={16} className="animate-spin" />}
           {loading ? 'Ingresando...' : 'Ingresar'}
         </button>
       </form>

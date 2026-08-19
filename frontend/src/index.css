@@ -1,1 +1,51 @@
 @import "tailwindcss";
+@import "@fontsource/rubik/latin-400.css";
+@import "@fontsource/rubik/latin-ext-400.css";
+@import "@fontsource/rubik/latin-500.css";
+@import "@fontsource/rubik/latin-ext-500.css";
+@import "@fontsource/rubik/latin-600.css";
+@import "@fontsource/rubik/latin-ext-600.css";
+@import "@fontsource/rubik/latin-700.css";
+@import "@fontsource/rubik/latin-ext-700.css";
+
+@theme {
+  --color-brand-red: #a32701;
+  --color-brand-red-dark: #7a1d01;
+  --color-brand-gray: #dddddd;
+  --color-brand-black: #1b1b1b;
+
+  --font-sans: 'Rubik', ui-sans-serif, system-ui, sans-serif;
+
+  --animate-fade-in: fade-in 0.25s ease-out both;
+  --animate-fade-in-fast: fade-in 0.15s ease-out both;
+  --animate-pop: pop 0.15s ease-out both;
+}
+
+@keyframes fade-in {
+  from {
+    opacity: 0;
+    transform: translateY(4px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes pop {
+  from {
+    opacity: 0;
+    transform: scale(0.96);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+body {
+  background-color: var(--color-brand-gray);
+  font-family: 'Rubik', ui-sans-serif, system-ui, sans-serif;
+  text-rendering: optimizeLegibility;
+  -webkit-font-smoothing: antialiased;
+}

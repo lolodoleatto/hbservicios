@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react'
+import { Pencil, Plus, Save, SlidersHorizontal, Trash2, X } from 'lucide-react'
 import { errorMessage, products } from './api'
 
 const TYPE_LABELS = {
@@ -103,7 +104,9 @@ function Products() {
   return (
     <div className="max-w-4xl mx-auto">
       {error && (
-        <p className="bg-red-100 text-red-700 text-sm rounded px-3 py-2 mb-4">{error}</p>
+        <p className="bg-red-100 text-red-700 text-sm rounded px-3 py-2 mb-4 animate-fade-in-fast">
+          {error}
+        </p>
       )}
 
       <form
@@ -116,7 +119,7 @@ function Products() {
             value={form.name}
             onChange={(e) => setForm({ ...form, name: e.target.value })}
             required
-            className="border border-slate-300 rounded px-2 py-1"
+            className="border border-slate-300 rounded px-2 py-1 transition-shadow focus:outline-none focus:ring-2 focus:ring-brand-red/30 focus:border-brand-red"
           />
         </div>
         <div>
@@ -124,7 +127,7 @@ function Products() {
           <select
             value={form.type}
             onChange={(e) => setForm({ ...form, type: e.target.value })}
-            className="border border-slate-300 rounded px-2 py-1"
+            className="border border-slate-300 rounded px-2 py-1 transition-shadow focus:outline-none focus:ring-2 focus:ring-brand-red/30 focus:border-brand-red"
           >
             {Object.entries(TYPE_LABELS).map(([value, label]) => (
               <option key={value} value={value}>
@@ -142,7 +145,7 @@ function Products() {
             value={form.currentPrice}
             onChange={(e) => setForm({ ...form, currentPrice: e.target.value })}
             required
-            className="border border-slate-300 rounded px-2 py-1 w-28"
+            className="border border-slate-300 rounded px-2 py-1 w-28 transition-shadow focus:outline-none focus:ring-2 focus:ring-brand-red/30 focus:border-brand-red"
           />
         </div>
         {editingId ? (
@@ -162,22 +165,24 @@ function Products() {
               min="0"
               value={form.stock}
               onChange={(e) => setForm({ ...form, stock: e.target.value })}
-              className="border border-slate-300 rounded px-2 py-1 w-24"
+              className="border border-slate-300 rounded px-2 py-1 w-24 transition-shadow focus:outline-none focus:ring-2 focus:ring-brand-red/30 focus:border-brand-red"
             />
           </div>
         )}
         <button
           type="submit"
-          className="bg-slate-800 text-white rounded px-4 py-1.5 hover:bg-slate-700"
+          className="inline-flex items-center gap-1.5 bg-brand-red text-white rounded px-4 py-1.5 hover:bg-brand-red-dark transition-all active:scale-95"
         >
+          {editingId ? <Save size={15} /> : <Plus size={15} />}
           {editingId ? 'Guardar cambios' : 'Agregar'}
         </button>
         {editingId && (
           <button
             type="button"
             onClick={cancelEdit}
-            className="text-sm text-slate-500 hover:text-slate-800 pb-1.5"
+            className="inline-flex items-center gap-1 text-sm text-slate-500 hover:text-slate-800 pb-1.5 transition-colors"
           >
+            <X size={15} />
             Cancelar
           </button>
         )}
@@ -193,6 +198,7 @@ function Products() {
       </label>
 
       <div className="bg-white shadow-sm rounded-lg overflow-hidden">
+        <div className="overflow-x-auto">
         <table className="w-full text-sm">
           <thead className="bg-slate-50 text-slate-500 text-left">
             <tr>
@@ -207,7 +213,7 @@ function Products() {
             {list.map((p) => (
               <tr
                 key={p.id}
-                className={`border-t border-slate-100 ${!p.active ? 'text-slate-400' : ''}`}
+                className={`border-t border-slate-100 transition-colors hover:bg-slate-50 ${!p.active ? 'text-slate-400' : ''}`}
               >
                 <td className="px-4 py-2">
                   {p.name}
@@ -216,25 +222,31 @@ function Products() {
                 <td className="px-4 py-2">{TYPE_LABELS[p.type] || p.type}</td>
                 <td className="px-4 py-2">${Number(p.currentPrice).toLocaleString('es-AR')}</td>
                 <td className="px-4 py-2">{p.stock}</td>
-                <td className="px-4 py-2 text-right space-x-3">
+                <td className="px-4 py-2 text-right space-x-3 whitespace-nowrap">
                   <button
                     onClick={() => startEdit(p)}
-                    className="text-slate-600 hover:text-slate-900"
+                    title="Editar"
+                    aria-label="Editar"
+                    className="text-slate-600 hover:text-brand-red transition-colors"
                   >
-                    Editar
+                    <Pencil size={16} />
                   </button>
                   <button
                     onClick={() => handleAdjustStock(p.id)}
-                    className="text-slate-600 hover:text-slate-900"
+                    title="Ajustar stock"
+                    aria-label="Ajustar stock"
+                    className="text-slate-600 hover:text-brand-red transition-colors"
                   >
-                    Ajustar stock
+                    <SlidersHorizontal size={16} />
                   </button>
                   {p.active && (
                     <button
                       onClick={() => handleDeactivate(p.id)}
-                      className="text-red-600 hover:text-red-800"
+                      title="Dar de baja"
+                      aria-label="Dar de baja"
+                      className="text-red-600 hover:text-red-800 transition-colors"
                     >
-                      Dar de baja
+                      <Trash2 size={16} />
                     </button>
                   )}
                 </td>
@@ -249,6 +261,7 @@ function Products() {
             )}
           </tbody>
         </table>
+        </div>
       </div>
     </div>
   )
