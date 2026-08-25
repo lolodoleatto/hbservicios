@@ -2,6 +2,8 @@ import {
   Column,
   CreateDateColumn,
   Entity,
+  JoinColumn,
+  ManyToOne,
   OneToMany,
   PrimaryGeneratedColumn,
 } from 'typeorm';
@@ -32,6 +34,13 @@ export class Product {
 
   @Column({ default: true })
   active: boolean;
+
+  // Solo tiene sentido en productos type=GAS_CYLINDER_FULL: el envase vacío
+  // que se recibe a cambio al vender esta garrafa llena, o que se entrega al
+  // proveedor al reponer stock (canje). Ver OrdersService y ExpensesService.
+  @ManyToOne(() => Product, { nullable: true, onDelete: 'SET NULL' })
+  @JoinColumn()
+  linkedEmptyProduct: Product | null;
 
   @OneToMany(() => PriceHistory, (priceHistory) => priceHistory.product)
   priceHistory: PriceHistory[];

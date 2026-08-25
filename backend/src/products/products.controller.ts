@@ -62,4 +62,9 @@ export class ProductsController {
   deactivate(@Param('id', ParseIntPipe) id: number) {
     return this.productsService.deactivate(id);
   }
+
+  @Delete(':id/permanent')
+  remove(@Param('id', ParseIntPipe) id: number) {
+    return this.productsService.remove(id);
+  }
 }

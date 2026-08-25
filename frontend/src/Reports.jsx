@@ -19,6 +19,69 @@ function money(value) {
   return `$${Number(value).toLocaleString('es-AR')}`
 }
 
+function toIso(date) {
+  return date.toISOString().slice(0, 10)
+}
+
+function startOfWeek(date) {
+  const d = new Date(date)
+  const day = d.getDay()
+  const diff = (day === 0 ? -6 : 1) - day
+  d.setDate(d.getDate() + diff)
+  return d
+}
+
+const QUICK_RANGES = [
+  {
+    label: 'Hoy',
+    getRange: () => {
+      const today = new Date()
+      return [toIso(today), toIso(today)]
+    },
+  },
+  {
+    label: 'Esta semana',
+    getRange: () => {
+      const today = new Date()
+      return [toIso(startOfWeek(today)), toIso(today)]
+    },
+  },
+  {
+    label: 'Semana pasada',
+    getRange: () => {
+      const today = new Date()
+      const start = startOfWeek(today)
+      start.setDate(start.getDate() - 7)
+      const end = new Date(start)
+      end.setDate(end.getDate() + 6)
+      return [toIso(start), toIso(end)]
+    },
+  },
+  {
+    label: 'Este mes',
+    getRange: () => {
+      const today = new Date()
+      return [toIso(new Date(today.getFullYear(), today.getMonth(), 1)), toIso(today)]
+    },
+  },
+  {
+    label: 'El mes pasado',
+    getRange: () => {
+      const today = new Date()
+      const start = new Date(today.getFullYear(), today.getMonth() - 1, 1)
+      const end = new Date(today.getFullYear(), today.getMonth(), 0)
+      return [toIso(start), toIso(end)]
+    },
+  },
+  {
+    label: 'Este año',
+    getRange: () => {
+      const today = new Date()
+      return [toIso(new Date(today.getFullYear(), 0, 1)), toIso(today)]
+    },
+  },
+]
+
 function StatTile({ label, value, tone = 'slate', Icon }) {
   const toneClasses = {
     slate: 'text-slate-800',
@@ -103,7 +166,24 @@ function Reports() {
         </p>
       )}
 
-      <div className="bg-white shadow-sm rounded-lg p-4 mb-6 flex flex-wrap gap-3 items-end">
+      <div className="bg-white shadow-sm rounded-lg p-4 mb-6">
+        <div className="flex flex-wrap gap-2 mb-3">
+          {QUICK_RANGES.map((range) => (
+            <button
+              key={range.label}
+              type="button"
+              onClick={() => {
+                const [rangeFrom, rangeTo] = range.getRange()
+                setFrom(rangeFrom)
+                setTo(rangeTo)
+              }}
+              className="text-xs font-medium px-3 py-1.5 rounded-full border border-slate-300 text-slate-600 hover:border-brand-red hover:text-brand-red transition-colors"
+            >
+              {range.label}
+            </button>
+          ))}
+        </div>
+        <div className="flex flex-wrap gap-3 items-end">
         <div>
           <label className="block text-xs text-slate-500 mb-1">Desde</label>
           <input
@@ -139,6 +219,7 @@ function Reports() {
           Sin fechas se muestra todo el histórico. El filtro aplica a ventas, balance y
           movimientos de stock.
         </p>
+        </div>
       </div>
 
       <h2 className="flex items-center gap-2 text-lg font-semibold text-slate-800 mb-3">

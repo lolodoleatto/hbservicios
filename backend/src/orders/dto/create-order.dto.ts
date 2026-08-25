@@ -33,6 +33,16 @@ export class CreateOrderDto {
   @Min(0)
   shippingCost?: number;
 
+  @ApiPropertyOptional({
+    example: 62500,
+    description:
+      'Total final del pedido. Vacío = se calcula como items - descuento + envío; si se manda, pisa ese cálculo (redondeos, acuerdos puntuales, etc.).',
+  })
+  @IsOptional()
+  @IsNumber()
+  @Min(0)
+  total?: number;
+
   @ApiProperty({ type: [CreateOrderItemDto] })
   @ValidateNested({ each: true })
   @Type(() => CreateOrderItemDto)

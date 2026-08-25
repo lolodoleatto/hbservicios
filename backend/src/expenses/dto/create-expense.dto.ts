@@ -1,4 +1,7 @@
+import { Type } from 'class-transformer';
 import {
+  IsArray,
+  IsBoolean,
   IsDateString,
   IsInt,
   IsNotEmpty,
@@ -6,16 +9,21 @@ import {
   IsOptional,
   IsString,
   Min,
-  ValidateIf,
+  ValidateNested,
 } from 'class-validator';
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
+import { CreateExpenseItemDto } from './create-expense-item.dto';
 
 export class CreateExpenseDto {
   @ApiProperty({ example: 'Compra de garrafas a proveedor' })
   @IsNotEmpty()
   description: string;
 
-  @ApiProperty({ example: 45000, description: 'Monto total del gasto' })
+  @ApiProperty({
+    example: 200000,
+    description:
+      'Monto total del gasto. Si hay líneas de productos, se sugiere como la suma de sus subtotales pero se puede modificar.',
+  })
   @IsNumber()
   @Min(0)
   amount: number;
@@ -29,21 +37,29 @@ export class CreateExpenseDto {
   @IsDateString()
   date: string;
 
-  @ApiPropertyOptional({
-    example: 1,
-    description:
-      'Si este gasto es un ingreso de stock (p.ej. compra de garrafas), el producto que ingresa.',
-  })
+  @ApiPropertyOptional({ example: 1, description: 'A quién se le compró (opcional)' })
   @IsOptional()
   @IsInt()
-  productId?: number;
+  supplierId?: number;
 
   @ApiPropertyOptional({
-    example: 20,
-    description: 'Cantidad que ingresa a stock. Requerido si se manda productId.',
+    type: [CreateExpenseItemDto],
+    description:
+      'Si este gasto es un ingreso de stock, los productos que ingresan (se puede cargar más de uno).',
   })
-  @ValidateIf((dto) => dto.productId !== undefined)
-  @IsInt()
-  @Min(1)
-  quantity?: number;
+  @IsOptional()
+  @IsArray()
+  @ValidateNested({ each: true })
+  @Type(() => CreateExpenseItemDto)
+  items?: CreateExpenseItemDto[];
+
+  @ApiPropertyOptional({
+    example: false,
+    default: false,
+    description:
+      'Si es un canje con el proveedor (se le dan envases vacíos a cambio de las llenas de cada línea). Todos los productos de items deben ser garrafas llenas con un vacío vinculado.',
+  })
+  @IsOptional()
+  @IsBoolean()
+  isExchange?: boolean;
 }

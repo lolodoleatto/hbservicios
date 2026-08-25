@@ -21,4 +21,13 @@ export class CreateProductDto {
   @IsInt()
   @Min(0)
   stock?: number;
+
+  @ApiPropertyOptional({
+    example: 2,
+    description:
+      'Solo para productos tipo garrafa llena: el ID del producto "vacía" correspondiente, para poder hacer canje en ventas y reposición.',
+  })
+  @IsOptional()
+  @IsInt()
+  linkedEmptyProductId?: number;
 }

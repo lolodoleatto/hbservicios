@@ -1,6 +1,16 @@
-import { useEffect, useState } from 'react'
-import { Pencil, Plus, Save, SlidersHorizontal, Trash2, X } from 'lucide-react'
-import { errorMessage, products } from './api'
+import { Fragment, useEffect, useState } from 'react'
+import {
+  History,
+  Pencil,
+  Plus,
+  Save,
+  SlidersHorizontal,
+  Trash2,
+  TrendingDown,
+  X,
+  XCircle,
+} from 'lucide-react'
+import { errorMessage, expenses, products } from './api'
 
 const TYPE_LABELS = {
   gas_cylinder_full: 'Garrafa llena',
@@ -8,12 +18,15 @@ const TYPE_LABELS = {
   fire_extinguisher: 'Matafuego',
 }
 
+const TYPE_ORDER = ['gas_cylinder_full', 'gas_cylinder_empty', 'fire_extinguisher']
+
 const EMPTY_FORM = {
   name: '',
   type: 'gas_cylinder_full',
   currentPrice: '',
   stock: '',
   active: true,
+  linkedEmptyProductId: '',
 }
 
 function Products() {
@@ -22,6 +35,8 @@ function Products() {
   const [form, setForm] = useState(EMPTY_FORM)
   const [editingId, setEditingId] = useState(null)
   const [showInactive, setShowInactive] = useState(false)
+  const [expandedId, setExpandedId] = useState(null)
+  const [purchases, setPurchases] = useState([])
 
   async function load() {
     setError('')
@@ -44,6 +59,7 @@ function Products() {
       currentPrice: product.currentPrice,
       stock: '',
       active: product.active,
+      linkedEmptyProductId: product.linkedEmptyProduct?.id ?? '',
     })
   }
 
@@ -56,12 +72,17 @@ function Products() {
     e.preventDefault()
     setError('')
     try {
+      const linkedEmptyProductId =
+        form.type === 'gas_cylinder_full' && form.linkedEmptyProductId
+          ? Number(form.linkedEmptyProductId)
+          : null
       if (editingId) {
         await products.update(editingId, {
           name: form.name,
           type: form.type,
           currentPrice: Number(form.currentPrice),
           active: form.active,
+          linkedEmptyProductId,
         })
       } else {
         await products.create({
@@ -69,6 +90,7 @@ function Products() {
           type: form.type,
           currentPrice: Number(form.currentPrice),
           stock: form.stock === '' ? 0 : Number(form.stock),
+          linkedEmptyProductId: linkedEmptyProductId ?? undefined,
         })
       }
       setEditingId(null)
@@ -79,12 +101,26 @@ function Products() {
     }
   }
 
-  async function handleAdjustStock(id) {
-    const delta = window.prompt('¿Cuánto stock sumar o restar? (negativo para restar)')
-    if (!delta) return
-    const reason = window.prompt('Motivo del ajuste') || 'Ajuste manual'
+  async function handleAdjustStock(product) {
+    const isEmpty = product.type === 'gas_cylinder_empty'
+    if (isEmpty) {
+      const delta = window.prompt('¿Cuánto stock sumar o restar? (negativo para restar)')
+      if (!delta || Number(delta) === 0) return
+      const reason = window.prompt('Motivo del ajuste') || 'Ajuste manual'
+      try {
+        await products.adjustStock(product.id, Number(delta), reason)
+        load()
+      } catch (err) {
+        setError(errorMessage(err))
+      }
+      return
+    }
+
+    const qty = window.prompt('¿Cuántas unidades dar de baja? (merma, rotura, corrección)')
+    if (!qty || Number(qty) <= 0) return
+    const reason = window.prompt('Motivo de la baja') || 'Ajuste manual'
     try {
-      await products.adjustStock(id, Number(delta), reason)
+      await products.adjustStock(product.id, -Math.abs(Number(qty)), reason)
       load()
     } catch (err) {
       setError(errorMessage(err))
@@ -96,6 +132,47 @@ function Products() {
     try {
       await products.deactivate(id)
       load()
+    } catch (err) {
+      setError(errorMessage(err))
+    }
+  }
+
+  async function handleRemove(product) {
+    if (
+      !window.confirm(
+        `¿Eliminar "${product.name}" definitivamente? Esta acción no se puede deshacer.`,
+      )
+    ) {
+      return
+    }
+    try {
+      await products.remove(product.id)
+      load()
+    } catch (err) {
+      setError(errorMessage(err))
+    }
+  }
+
+  async function toggleExpanded(product) {
+    if (expandedId === product.id) {
+      setExpandedId(null)
+      return
+    }
+    setExpandedId(product.id)
+    try {
+      const expensesForProduct = await expenses.list(product.id)
+      const flat = expensesForProduct.flatMap((exp) =>
+        (exp.items || [])
+          .filter((it) => it.product.id === product.id)
+          .map((it) => ({
+            id: it.id,
+            date: exp.date,
+            quantity: it.quantity,
+            unitPrice: it.unitPrice,
+            subtotal: it.subtotal,
+          })),
+      )
+      setPurchases(flat)
     } catch (err) {
       setError(errorMessage(err))
     }
@@ -136,6 +213,25 @@ function Products() {
             ))}
           </select>
         </div>
+        {form.type === 'gas_cylinder_full' && (
+          <div>
+            <label className="block text-xs text-slate-500 mb-1">Vacío correspondiente</label>
+            <select
+              value={form.linkedEmptyProductId}
+              onChange={(e) => setForm({ ...form, linkedEmptyProductId: e.target.value })}
+              className="border border-slate-300 rounded px-2 py-1 transition-shadow focus:outline-none focus:ring-2 focus:ring-brand-red/30 focus:border-brand-red"
+            >
+              <option value="">Sin vincular</option>
+              {list
+                .filter((p) => p.type === 'gas_cylinder_empty')
+                .map((p) => (
+                  <option key={p.id} value={p.id}>
+                    {p.name}
+                  </option>
+                ))}
+            </select>
+          </div>
+        )}
         <div>
           <label className="block text-xs text-slate-500 mb-1">Precio</label>
           <input
@@ -188,6 +284,14 @@ function Products() {
         )}
       </form>
 
+      <p className="text-xs text-slate-500 mb-3">
+        Para sumar stock de garrafas llenas, cilindros o matafuegos, cargá un gasto vinculado al
+        producto en la pestaña Gastos — así queda registrado a qué costo se compró. Acá solo se
+        pueden registrar bajas (mermas, roturas, correcciones). Los envases <strong>vacíos</strong>{' '}
+        son la excepción: su stock se puede ajustar libremente, sumando o restando, directamente
+        desde acá.
+      </p>
+
       <label className="flex items-center gap-2 text-sm text-slate-600 mb-3">
         <input
           type="checkbox"
@@ -203,58 +307,162 @@ function Products() {
           <thead className="bg-slate-50 text-slate-500 text-left">
             <tr>
               <th className="px-4 py-2">Nombre</th>
-              <th className="px-4 py-2">Tipo</th>
               <th className="px-4 py-2">Precio</th>
               <th className="px-4 py-2">Stock</th>
               <th className="px-4 py-2"></th>
             </tr>
           </thead>
           <tbody>
-            {list.map((p) => (
-              <tr
-                key={p.id}
-                className={`border-t border-slate-100 transition-colors hover:bg-slate-50 ${!p.active ? 'text-slate-400' : ''}`}
-              >
-                <td className="px-4 py-2">
-                  {p.name}
-                  {!p.active && ' (baja)'}
-                </td>
-                <td className="px-4 py-2">{TYPE_LABELS[p.type] || p.type}</td>
-                <td className="px-4 py-2">${Number(p.currentPrice).toLocaleString('es-AR')}</td>
-                <td className="px-4 py-2">{p.stock}</td>
-                <td className="px-4 py-2 text-right space-x-3 whitespace-nowrap">
-                  <button
-                    onClick={() => startEdit(p)}
-                    title="Editar"
-                    aria-label="Editar"
-                    className="text-slate-600 hover:text-brand-red transition-colors"
+            {TYPE_ORDER.filter((type) => list.some((p) => p.type === type)).map((type) => (
+              <Fragment key={type}>
+                <tr>
+                  <td
+                    colSpan={4}
+                    className="px-4 py-1.5 bg-brand-gray/40 text-xs font-semibold text-slate-600 uppercase tracking-wide"
                   >
-                    <Pencil size={16} />
-                  </button>
-                  <button
-                    onClick={() => handleAdjustStock(p.id)}
-                    title="Ajustar stock"
-                    aria-label="Ajustar stock"
-                    className="text-slate-600 hover:text-brand-red transition-colors"
+                    {TYPE_LABELS[type]}
+                  </td>
+                </tr>
+                {list
+                  .filter((p) => p.type === type)
+                  .map((p) => {
+                    const isExpanded = expandedId === p.id
+                    return (
+                      <Fragment key={p.id}>
+                  <tr
+                    className={`border-t border-slate-100 transition-colors hover:bg-slate-50 ${!p.active ? 'text-slate-400' : ''}`}
                   >
-                    <SlidersHorizontal size={16} />
-                  </button>
-                  {p.active && (
-                    <button
-                      onClick={() => handleDeactivate(p.id)}
-                      title="Dar de baja"
-                      aria-label="Dar de baja"
-                      className="text-red-600 hover:text-red-800 transition-colors"
-                    >
-                      <Trash2 size={16} />
-                    </button>
+                    <td className="px-4 py-2">
+                      {p.name}
+                      {!p.active && ' (baja)'}
+                      {p.linkedEmptyProduct && (
+                        <span className="block text-xs text-slate-400">
+                          ↔ {p.linkedEmptyProduct.name}
+                        </span>
+                      )}
+                    </td>
+                    <td className="px-4 py-2">${Number(p.currentPrice).toLocaleString('es-AR')}</td>
+                    <td className="px-4 py-2">
+                      {p.stock}
+                      {p.linkedEmptyProduct && (
+                        <span className="block text-xs text-slate-400">
+                          {p.linkedEmptyProduct.stock} vacías
+                        </span>
+                      )}
+                    </td>
+                    <td className="px-4 py-2 text-right space-x-3 whitespace-nowrap">
+                      <button
+                        onClick={() => toggleExpanded(p)}
+                        title={isExpanded ? 'Ocultar compras' : 'Ver compras'}
+                        aria-label={isExpanded ? 'Ocultar compras' : 'Ver compras'}
+                        className="text-slate-600 hover:text-brand-red transition-colors"
+                      >
+                        <History size={16} />
+                      </button>
+                      <button
+                        onClick={() => startEdit(p)}
+                        title="Editar"
+                        aria-label="Editar"
+                        className="text-slate-600 hover:text-brand-red transition-colors"
+                      >
+                        <Pencil size={16} />
+                      </button>
+                      <button
+                        onClick={() => handleAdjustStock(p)}
+                        title={
+                          p.type === 'gas_cylinder_empty'
+                            ? 'Ajustar stock'
+                            : 'Registrar merma o corrección'
+                        }
+                        aria-label={
+                          p.type === 'gas_cylinder_empty'
+                            ? 'Ajustar stock'
+                            : 'Registrar merma o corrección'
+                        }
+                        className="text-slate-600 hover:text-brand-red transition-colors"
+                      >
+                        {p.type === 'gas_cylinder_empty' ? (
+                          <SlidersHorizontal size={16} />
+                        ) : (
+                          <TrendingDown size={16} />
+                        )}
+                      </button>
+                      {p.active ? (
+                        <button
+                          onClick={() => handleDeactivate(p.id)}
+                          title="Dar de baja"
+                          aria-label="Dar de baja"
+                          className="text-red-600 hover:text-red-800 transition-colors"
+                        >
+                          <Trash2 size={16} />
+                        </button>
+                      ) : (
+                        <button
+                          onClick={() => handleRemove(p)}
+                          title="Eliminar definitivamente"
+                          aria-label="Eliminar definitivamente"
+                          className="text-red-600 hover:text-red-800 transition-colors"
+                        >
+                          <XCircle size={16} />
+                        </button>
+                      )}
+                    </td>
+                  </tr>
+                  {isExpanded && (
+                    <tr className="bg-slate-50 border-t border-slate-100">
+                      <td colSpan={4} className="px-4 py-3">
+                        <div className="animate-fade-in overflow-x-auto">
+                          <p className="flex items-center gap-1 text-xs font-semibold text-slate-500 mb-2">
+                            <History size={13} />
+                            Historial de compras
+                          </p>
+                          <table className="w-full text-xs">
+                            <thead className="text-slate-500 text-left">
+                              <tr>
+                                <th className="pr-4 py-1">Fecha</th>
+                                <th className="pr-4 py-1">Cantidad</th>
+                                <th className="pr-4 py-1">Costo unitario</th>
+                                <th className="pr-4 py-1">Total</th>
+                              </tr>
+                            </thead>
+                            <tbody>
+                              {purchases.map((purchase) => (
+                                <tr key={purchase.id}>
+                                  <td className="pr-4 py-1">
+                                    {new Date(`${purchase.date}T00:00:00`).toLocaleDateString('es-AR')}
+                                  </td>
+                                  <td className="pr-4 py-1">{purchase.quantity}</td>
+                                  <td className="pr-4 py-1">
+                                    ${Number(purchase.unitPrice).toLocaleString('es-AR', {
+                                      maximumFractionDigits: 2,
+                                    })}
+                                  </td>
+                                  <td className="pr-4 py-1">
+                                    ${Number(purchase.subtotal).toLocaleString('es-AR')}
+                                  </td>
+                                </tr>
+                              ))}
+                              {purchases.length === 0 && (
+                                <tr>
+                                  <td colSpan={4} className="py-3 text-center text-slate-400">
+                                    Sin compras registradas todavía.
+                                  </td>
+                                </tr>
+                              )}
+                            </tbody>
+                          </table>
+                        </div>
+                      </td>
+                    </tr>
                   )}
-                </td>
-              </tr>
+                    </Fragment>
+                  )
+                })}
+              </Fragment>
             ))}
             {list.length === 0 && (
               <tr>
-                <td colSpan={5} className="px-4 py-6 text-center text-slate-400">
+                <td colSpan={4} className="px-4 py-6 text-center text-slate-400">
                   No hay productos cargados todavía.
                 </td>
               </tr>

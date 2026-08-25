@@ -11,6 +11,7 @@ import { OrdersModule } from './orders/orders.module';
 import { ExpensesModule } from './expenses/expenses.module';
 import { ReportsModule } from './reports/reports.module';
 import { FireExtinguishersModule } from './fire-extinguishers/fire-extinguishers.module';
+import { SuppliersModule } from './suppliers/suppliers.module';
 import { AuthModule } from './auth/auth.module';
 import { JwtAuthGuard } from './auth/guards/jwt-auth.guard';
 import { RolesGuard } from './auth/guards/roles.guard';
@@ -42,6 +43,7 @@ import { RolesGuard } from './auth/guards/roles.guard';
     ExpensesModule,
     ReportsModule,
     FireExtinguishersModule,
+    SuppliersModule,
     AuthModule,
   ],
   controllers: [AppController],

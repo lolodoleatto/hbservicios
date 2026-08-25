@@ -6,6 +6,7 @@ import {
   Download,
   Plus,
   RefreshCw,
+  Repeat,
   Share2,
   Trash2,
   Wifi,
@@ -14,8 +15,14 @@ import {
 } from 'lucide-react'
 import { clients, errorMessage, orders, products } from './api'
 
-const EMPTY_ITEM = { productId: '', quantity: '1' }
+const EMPTY_ITEM = { productId: '', quantity: '1', withExchange: true, expiresAt: '' }
 const EMPTY_LOAN = { productId: '', quantity: '1', notes: '' }
+
+function plusOneYearIso(date = new Date()) {
+  const d = new Date(date)
+  d.setFullYear(d.getFullYear() + 1)
+  return d.toISOString().slice(0, 10)
+}
 
 function Orders() {
   const [list, setList] = useState([])
@@ -35,6 +42,8 @@ function Orders() {
   const [items, setItems] = useState([{ ...EMPTY_ITEM }])
   const [includeLoan, setIncludeLoan] = useState(false)
   const [loan, setLoan] = useState({ ...EMPTY_LOAN })
+  const [total, setTotal] = useState('0')
+  const [totalTouched, setTotalTouched] = useState(false)
 
   async function load() {
     setError('')
@@ -94,8 +103,36 @@ function Orders() {
     }
   }, [])
 
+  // Total en vivo = suma de líneas - descuento + envío, salvo que el usuario
+  // ya haya tocado el campo a mano (ahí dejamos de pisarlo).
+  useEffect(() => {
+    if (totalTouched) return
+    const itemsTotal = items.reduce((sum, it) => {
+      const product = productList.find((p) => String(p.id) === String(it.productId))
+      if (!product) return sum
+      return sum + Number(product.currentPrice) * (Number(it.quantity) || 0)
+    }, 0)
+    const computed = itemsTotal - (Number(discount) || 0) + (Number(shippingCost) || 0)
+    setTotal(String(Math.max(computed, 0)))
+  }, [items, discount, shippingCost, productList, totalTouched])
+
   function updateItem(index, field, value) {
     setItems(items.map((it, i) => (i === index ? { ...it, [field]: value } : it)))
+  }
+
+  function updateItemProduct(index, productId) {
+    const product = productList.find((p) => String(p.id) === String(productId))
+    setItems(
+      items.map((it, i) =>
+        i === index
+          ? {
+              ...it,
+              productId,
+              expiresAt: product?.type === 'fire_extinguisher' ? plusOneYearIso() : '',
+            }
+          : it,
+      ),
+    )
   }
 
   function addItem() {
@@ -114,9 +151,12 @@ function Orders() {
         clientId: clientId ? Number(clientId) : undefined,
         discount: Number(discount) || 0,
         shippingCost: Number(shippingCost) || 0,
+        total: Number(total) || 0,
         items: items.map((it) => ({
           productId: Number(it.productId),
           quantity: Number(it.quantity),
+          withExchange: it.withExchange !== false,
+          expiresAt: it.expiresAt || undefined,
         })),
       }
       if (includeLoan && clientId && loan.productId) {
@@ -132,6 +172,8 @@ function Orders() {
       setClientId('')
       setDiscount('0')
       setShippingCost('0')
+      setTotal('0')
+      setTotalTouched(false)
       setItems([{ ...EMPTY_ITEM }])
       setIncludeLoan(false)
       setLoan({ ...EMPTY_LOAN })
@@ -330,7 +372,7 @@ function Orders() {
                 <label className="block text-xs text-slate-500 mb-1">Producto</label>
                 <select
                   value={item.productId}
-                  onChange={(e) => updateItem(i, 'productId', e.target.value)}
+                  onChange={(e) => updateItemProduct(i, e.target.value)}
                   required
                   className="border border-slate-300 rounded px-2 py-1 transition-shadow focus:outline-none focus:ring-2 focus:ring-brand-red/30 focus:border-brand-red"
                 >
@@ -353,6 +395,30 @@ function Orders() {
                   className="border border-slate-300 rounded px-2 py-1 w-20 transition-shadow focus:outline-none focus:ring-2 focus:ring-brand-red/30 focus:border-brand-red"
                 />
               </div>
+              {productList.find((p) => String(p.id) === String(item.productId))?.type ===
+                'fire_extinguisher' && (
+                <div>
+                  <label className="block text-xs text-slate-500 mb-1">Vencimiento</label>
+                  <input
+                    type="date"
+                    value={item.expiresAt || plusOneYearIso()}
+                    onChange={(e) => updateItem(i, 'expiresAt', e.target.value)}
+                    className="border border-slate-300 rounded px-2 py-1 transition-shadow focus:outline-none focus:ring-2 focus:ring-brand-red/30 focus:border-brand-red"
+                  />
+                </div>
+              )}
+              {productList.find((p) => String(p.id) === String(item.productId))
+                ?.linkedEmptyProduct && (
+                <label className="flex items-center gap-1.5 text-sm text-slate-600 pb-1.5">
+                  <input
+                    type="checkbox"
+                    checked={item.withExchange !== false}
+                    onChange={(e) => updateItem(i, 'withExchange', e.target.checked)}
+                  />
+                  <Repeat size={14} />
+                  Con canje
+                </label>
+              )}
               {items.length > 1 && (
                 <button
                   type="button"
@@ -365,6 +431,24 @@ function Orders() {
               )}
             </div>
           ))}
+        </div>
+
+        <div className="flex items-center justify-end gap-2 border-t border-slate-100 pt-3 mb-3">
+          <label className="text-sm text-slate-600">
+            Total del pedido
+            {!totalTouched && <span className="text-slate-400"> (sugerido)</span>}
+          </label>
+          <input
+            type="number"
+            min="0"
+            step="0.01"
+            value={total}
+            onChange={(e) => {
+              setTotal(e.target.value)
+              setTotalTouched(e.target.value !== '')
+            }}
+            className="border border-slate-300 rounded px-2 py-1 w-32 text-right font-semibold text-lg transition-shadow focus:outline-none focus:ring-2 focus:ring-brand-red/30 focus:border-brand-red"
+          />
         </div>
 
         <div className="border-t border-slate-100 pt-3 mb-3">

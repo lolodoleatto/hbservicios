@@ -87,6 +87,9 @@ export const products = {
   deactivate(id) {
     return request(`/products/${id}`, { method: 'DELETE' })
   },
+  remove(id) {
+    return request(`/products/${id}/permanent`, { method: 'DELETE' })
+  },
 }
 
 export const clients = {
@@ -180,8 +183,8 @@ export const orders = {
 }
 
 export const expenses = {
-  list() {
-    return request('/expenses')
+  list(productId) {
+    return request(`/expenses${toQuery({ productId })}`)
   },
   create(dto) {
     return request('/expenses', { method: 'POST', body: JSON.stringify(dto) })
@@ -218,5 +221,20 @@ export const fireExtinguishers = {
   },
   create(dto) {
     return request('/fire-extinguishers', { method: 'POST', body: JSON.stringify(dto) })
+  },
+}
+
+export const suppliers = {
+  list(includeInactive = false) {
+    return request(`/suppliers?includeInactive=${includeInactive}`)
+  },
+  create(dto) {
+    return request('/suppliers', { method: 'POST', body: JSON.stringify(dto) })
+  },
+  update(id, dto) {
+    return request(`/suppliers/${id}`, { method: 'PATCH', body: JSON.stringify(dto) })
+  },
+  deactivate(id) {
+    return request(`/suppliers/${id}`, { method: 'DELETE' })
   },
 }

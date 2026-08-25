@@ -1,5 +1,14 @@
 import { useState } from 'react'
-import { Package, Users, ClipboardList, Receipt, FireExtinguisher, BarChart3, LogOut } from 'lucide-react'
+import {
+  Package,
+  Users,
+  ClipboardList,
+  Receipt,
+  FireExtinguisher,
+  BarChart3,
+  Truck,
+  LogOut,
+} from 'lucide-react'
 import { auth } from './api'
 import Login from './Login'
 import Products from './Products'
@@ -8,6 +17,7 @@ import Orders from './Orders'
 import Expenses from './Expenses'
 import Reports from './Reports'
 import FireExtinguishers from './FireExtinguishers'
+import Suppliers from './Suppliers'
 import Sidebar from './Sidebar'
 import BottomNav from './BottomNav'
 
@@ -16,6 +26,7 @@ const TABS = {
   clients: { label: 'Clientes', Icon: Users, Component: Clients },
   orders: { label: 'Pedidos', Icon: ClipboardList, Component: Orders },
   expenses: { label: 'Gastos', Icon: Receipt, Component: Expenses },
+  suppliers: { label: 'Proveedores', Icon: Truck, Component: Suppliers },
   fireExtinguishers: {
     label: 'Matafuegos',
     Icon: FireExtinguisher,

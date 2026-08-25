@@ -1,6 +1,7 @@
 import {
   IsBoolean,
   IsEnum,
+  IsInt,
   IsNotEmpty,
   IsNumber,
   IsOptional,
@@ -30,4 +31,14 @@ export class UpdateProductDto {
   @IsOptional()
   @IsBoolean()
   active?: boolean;
+
+  @ApiPropertyOptional({
+    example: 2,
+    description:
+      'Solo para productos tipo garrafa llena: el ID del producto "vacía" correspondiente. Mandar null para desvincular.',
+    nullable: true,
+  })
+  @IsOptional()
+  @IsInt()
+  linkedEmptyProductId?: number | null;
 }

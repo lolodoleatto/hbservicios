@@ -50,10 +50,12 @@ export class OrdersService {
       const product = products[i];
       const unitPrice = product.currentPrice;
       const subtotal = (Number(unitPrice) * item.quantity).toFixed(2);
-      const expiresAt =
-        product.type === ProductType.FIRE_EXTINGUISHER
-          ? new Date(now.getFullYear() + 1, now.getMonth(), now.getDate())
-          : null;
+      let expiresAt: Date | null = null;
+      if (product.type === ProductType.FIRE_EXTINGUISHER) {
+        expiresAt = item.expiresAt
+          ? new Date(`${item.expiresAt}T00:00:00`)
+          : new Date(now.getFullYear() + 1, now.getMonth(), now.getDate());
+      }
 
       return this.orderItemsRepository.create({
         product: { id: product.id } as Product,
@@ -66,11 +68,9 @@ export class OrdersService {
 
     const discount = dto.discount ?? 0;
     const shippingCost = dto.shippingCost ?? 0;
-    const total = (
-      orderItems.reduce((sum, item) => sum + Number(item.subtotal), 0) -
-      discount +
-      shippingCost
-    ).toFixed(2);
+    const computedTotal =
+      orderItems.reduce((sum, item) => sum + Number(item.subtotal), 0) - discount + shippingCost;
+    const total = (dto.total ?? computedTotal).toFixed(2);
 
     const orderNumber = await this.nextOrderNumber();
 
@@ -86,11 +86,28 @@ export class OrdersService {
 
     // El pedido ya quedó persistido; recién ahora se descuenta el stock,
     // para no dejar un pedido a mitad de camino si algo falla antes.
-    for (const item of dto.items) {
+    for (let i = 0; i < dto.items.length; i++) {
+      const item = dto.items[i];
+      const product = products[i];
+
       await this.productsService.adjustStock(item.productId, {
         delta: -item.quantity,
         reason: `Venta pedido #${orderNumber}`,
       });
+
+      // Canje: el cliente entrega su envase vacío a cambio de la garrafa
+      // llena. Por defecto se asume que sí (es lo normal en este negocio),
+      // salvo que se marque explícitamente withExchange: false.
+      if (
+        product.type === ProductType.GAS_CYLINDER_FULL &&
+        product.linkedEmptyProduct &&
+        item.withExchange !== false
+      ) {
+        await this.productsService.adjustStock(product.linkedEmptyProduct.id, {
+          delta: item.quantity,
+          reason: `Canje - pedido #${orderNumber}`,
+        });
+      }
     }
 
     let loans: ContainerLoan[] | undefined;
