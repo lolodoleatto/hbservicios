@@ -1,6 +1,7 @@
 import { useState } from 'react'
-import { FireExtinguisher, Loader2, Lock, Mail } from 'lucide-react'
+import { Loader2, Lock, Mail } from 'lucide-react'
 import { auth } from './api'
+import hbLogo from './assets/hb-logo.svg'
 
 function Login({ onLogin }) {
   const [email, setEmail] = useState('admin@hbservicios.com')
@@ -33,9 +34,7 @@ function Login({ onLogin }) {
         onSubmit={handleSubmit}
         className="relative bg-white shadow-2xl shadow-brand-red/20 rounded-2xl p-8 w-full max-w-sm animate-pop"
       >
-        <div className="w-12 h-12 rounded-xl bg-brand-red/10 flex items-center justify-center mb-4">
-          <FireExtinguisher size={24} className="text-brand-red" strokeWidth={2} />
-        </div>
+        <img src={hbLogo} alt="HB Servicios" className="w-14 h-14 rounded-xl mb-4" />
         <h1 className="text-2xl font-semibold text-brand-black mb-1">HB Servicios</h1>
         <p className="text-slate-500 mb-6">Iniciar sesión</p>
 

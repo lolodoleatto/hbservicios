@@ -26,7 +26,6 @@ const EMPTY_FORM = {
   currentPrice: '',
   stock: '',
   active: true,
-  linkedEmptyProductId: '',
 }
 
 function Products() {
@@ -59,7 +58,6 @@ function Products() {
       currentPrice: product.currentPrice,
       stock: '',
       active: product.active,
-      linkedEmptyProductId: product.linkedEmptyProduct?.id ?? '',
     })
   }
 
@@ -72,17 +70,12 @@ function Products() {
     e.preventDefault()
     setError('')
     try {
-      const linkedEmptyProductId =
-        form.type === 'gas_cylinder_full' && form.linkedEmptyProductId
-          ? Number(form.linkedEmptyProductId)
-          : null
       if (editingId) {
         await products.update(editingId, {
           name: form.name,
           type: form.type,
           currentPrice: Number(form.currentPrice),
           active: form.active,
-          linkedEmptyProductId,
         })
       } else {
         await products.create({
@@ -90,7 +83,6 @@ function Products() {
           type: form.type,
           currentPrice: Number(form.currentPrice),
           stock: form.stock === '' ? 0 : Number(form.stock),
-          linkedEmptyProductId: linkedEmptyProductId ?? undefined,
         })
       }
       setEditingId(null)
@@ -213,25 +205,6 @@ function Products() {
             ))}
           </select>
         </div>
-        {form.type === 'gas_cylinder_full' && (
-          <div>
-            <label className="block text-xs text-slate-500 mb-1">Vacío correspondiente</label>
-            <select
-              value={form.linkedEmptyProductId}
-              onChange={(e) => setForm({ ...form, linkedEmptyProductId: e.target.value })}
-              className="border border-slate-300 rounded px-2 py-1 transition-shadow focus:outline-none focus:ring-2 focus:ring-brand-red/30 focus:border-brand-red"
-            >
-              <option value="">Sin vincular</option>
-              {list
-                .filter((p) => p.type === 'gas_cylinder_empty')
-                .map((p) => (
-                  <option key={p.id} value={p.id}>
-                    {p.name}
-                  </option>
-                ))}
-            </select>
-          </div>
-        )}
         <div>
           <label className="block text-xs text-slate-500 mb-1">Precio</label>
           <input
@@ -289,7 +262,9 @@ function Products() {
         producto en la pestaña Gastos — así queda registrado a qué costo se compró. Acá solo se
         pueden registrar bajas (mermas, roturas, correcciones). Los envases <strong>vacíos</strong>{' '}
         son la excepción: su stock se puede ajustar libremente, sumando o restando, directamente
-        desde acá.
+        desde acá. Una garrafa llena se vincula sola con su vacía correspondiente si tienen el
+        mismo nombre (p. ej. "Garrafa 10kg llena" con "Garrafa 10kg vacía") — no hace falta
+        elegirlo a mano.
       </p>
 
       <label className="flex items-center gap-2 text-sm text-slate-600 mb-3">
@@ -338,6 +313,11 @@ function Products() {
                       {p.linkedEmptyProduct && (
                         <span className="block text-xs text-slate-400">
                           ↔ {p.linkedEmptyProduct.name}
+                        </span>
+                      )}
+                      {p.type === 'gas_cylinder_full' && !p.linkedEmptyProduct && (
+                        <span className="block text-xs text-amber-600">
+                          Sin vacío vinculado (revisá que el nombre coincida)
                         </span>
                       )}
                     </td>

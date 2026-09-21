@@ -67,10 +67,16 @@ function Clients() {
     e.preventDefault()
     setError('')
     try {
+      const payload = {
+        ...form,
+        phone: form.phone || undefined,
+        address: form.address || undefined,
+        email: form.email || undefined,
+      }
       if (editingId) {
-        await clients.update(editingId, form)
+        await clients.update(editingId, payload)
       } else {
-        await clients.create(form)
+        await clients.create(payload)
       }
       setEditingId(null)
       setForm(EMPTY_FORM)

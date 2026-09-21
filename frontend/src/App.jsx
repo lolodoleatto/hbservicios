@@ -20,6 +20,7 @@ import FireExtinguishers from './FireExtinguishers'
 import Suppliers from './Suppliers'
 import Sidebar from './Sidebar'
 import BottomNav from './BottomNav'
+import hbLogo from './assets/hb-logo.svg'
 
 const TABS = {
   products: { label: 'Productos', Icon: Package, Component: Products },
@@ -56,11 +57,14 @@ function App() {
 
       <div className="md:pl-60">
         <header className="md:hidden sticky top-0 z-20 bg-brand-black text-white px-4 py-3 flex items-center justify-between">
-          <div>
-            <p className="text-xs text-white/40 leading-none">HB Servicios</p>
-            <h1 key={tab} className="text-base font-semibold leading-tight animate-fade-in-fast">
-              {label}
-            </h1>
+          <div className="flex items-center gap-2.5">
+            <img src={hbLogo} alt="HB Servicios" className="w-8 h-8 rounded-lg" />
+            <div>
+              <p className="text-xs text-white/40 leading-none">HB Servicios</p>
+              <h1 key={tab} className="text-base font-semibold leading-tight animate-fade-in-fast">
+                {label}
+              </h1>
+            </div>
           </div>
           <button onClick={handleLogout} aria-label="Cerrar sesión" className="text-white/70 p-2 -mr-2">
             <LogOut size={20} />

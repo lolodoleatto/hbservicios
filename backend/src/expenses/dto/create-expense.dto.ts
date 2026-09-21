@@ -15,9 +15,14 @@ import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 import { CreateExpenseItemDto } from './create-expense-item.dto';
 
 export class CreateExpenseDto {
-  @ApiProperty({ example: 'Compra de garrafas a proveedor' })
+  @ApiProperty({ example: 'Compra de stock' })
   @IsNotEmpty()
-  description: string;
+  category: string;
+
+  @ApiPropertyOptional({ example: 'Compra de garrafas a proveedor' })
+  @IsOptional()
+  @IsString()
+  description?: string;
 
   @ApiProperty({
     example: 200000,
@@ -27,11 +32,6 @@ export class CreateExpenseDto {
   @IsNumber()
   @Min(0)
   amount: number;
-
-  @ApiPropertyOptional({ example: 'Compra de stock' })
-  @IsOptional()
-  @IsString()
-  category?: string;
 
   @ApiProperty({ example: '2026-08-19' })
   @IsDateString()

@@ -106,8 +106,13 @@ export class ReportsService {
     const expensesList = await this.expensesRepository.find({
       where: date ? { date } : {},
     });
+    const recharges = await this.fireExtinguishersRepository.find({
+      where: date ? { soldAt: date } : {},
+    });
 
-    const income = orders.reduce((sum, o) => sum + Number(o.total), 0);
+    const ordersIncome = orders.reduce((sum, o) => sum + Number(o.total), 0);
+    const rechargesIncome = recharges.reduce((sum, fe) => sum + Number(fe.amount || 0), 0);
+    const income = ordersIncome + rechargesIncome;
     const expensesTotal = expensesList.reduce((sum, e) => sum + Number(e.amount), 0);
 
     return {
@@ -136,7 +141,9 @@ export class ReportsService {
         id: `pedido-${item.id}`,
         source: 'pedido' as const,
         orderNumber: item.order.orderNumber as number | null,
+        clientId: item.order.client?.id ?? null,
         clientName: item.order.client?.name ?? 'Consumidor final',
+        productId: item.product.id,
         productName: item.product.name,
         quantity: item.quantity,
         expiresAt: item.expiresAt as Date,
@@ -152,7 +159,9 @@ export class ReportsService {
       id: `directo-${fe.id}`,
       source: 'directo' as const,
       orderNumber: null,
+      clientId: fe.client.id,
       clientName: fe.client.name,
+      productId: fe.product.id,
       productName: fe.product.name,
       quantity: 1,
       expiresAt: new Date(`${fe.expiresAt}T00:00:00`),

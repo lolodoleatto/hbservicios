@@ -102,9 +102,8 @@ async function bootstrap() {
     type: ProductType,
     currentPrice: number,
     stock: number,
-    linkedEmptyProductId?: number,
   ) {
-    const p = await productsService.create({ name, type, currentPrice, stock, linkedEmptyProductId });
+    const p = await productsService.create({ name, type, currentPrice, stock });
     await conn.execute('UPDATE price_history SET validFrom = ? WHERE productId = ?', [genesis, p.id]);
     if (stock > 0) {
       await conn.execute(
@@ -121,7 +120,6 @@ async function bootstrap() {
     ProductType.GAS_CYLINDER_FULL,
     25000,
     15,
-    garrafa10Vacia.id,
   );
 
   const garrafa15Vacia = await createProduct('Garrafa 15kg vacía', ProductType.GAS_CYLINDER_EMPTY, 0, 10);
@@ -130,7 +128,6 @@ async function bootstrap() {
     ProductType.GAS_CYLINDER_FULL,
     30000,
     8,
-    garrafa15Vacia.id,
   );
 
   const cilindro45Vacia = await createProduct('Cilindro 45kg vacío', ProductType.GAS_CYLINDER_EMPTY, 0, 5);
@@ -139,7 +136,6 @@ async function bootstrap() {
     ProductType.GAS_CYLINDER_FULL,
     75000,
     4,
-    cilindro45Vacia.id,
   );
 
   const matafuego1kg = await createProduct('Matafuego ABC 1kg', ProductType.FIRE_EXTINGUISHER, 9000, 10);
@@ -198,6 +194,7 @@ async function bootstrap() {
       }
       const date = pick(datesInMonth(2026, month, 3));
       const expense = await expensesService.create({
+        category: 'Canje con proveedor',
         description: `Recarga con proveedor - ${cyl.full.name}`,
         amount: qty * cyl.cost,
         date: iso(date),
@@ -216,6 +213,7 @@ async function bootstrap() {
         const qty = randInt(5, 8);
         const date = pick(datesInMonth(2026, month, 3));
         const expense = await expensesService.create({
+          category: 'Compra de stock',
           description: `Compra de ${m.product.name} a proveedor`,
           amount: qty * m.cost,
           date: iso(date),

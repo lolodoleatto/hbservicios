@@ -44,10 +44,16 @@ function Suppliers() {
     e.preventDefault()
     setError('')
     try {
+      const payload = {
+        ...form,
+        phone: form.phone || undefined,
+        address: form.address || undefined,
+        email: form.email || undefined,
+      }
       if (editingId) {
-        await suppliers.update(editingId, form)
+        await suppliers.update(editingId, payload)
       } else {
-        await suppliers.create(form)
+        await suppliers.create(payload)
       }
       setEditingId(null)
       setForm(EMPTY_FORM)

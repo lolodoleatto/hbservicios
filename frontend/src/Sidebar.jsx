@@ -1,11 +1,15 @@
 import { LogOut } from 'lucide-react'
+import hbLogo from './assets/hb-logo.svg'
 
 function Sidebar({ tabs, active, onSelect, onLogout }) {
   return (
     <aside className="hidden md:flex md:flex-col md:w-60 md:fixed md:inset-y-0 bg-brand-black text-white z-30">
-      <div className="px-6 py-5 border-b border-white/10">
-        <h1 className="text-lg font-bold tracking-tight">HB Servicios</h1>
-        <p className="text-xs text-white/40">Sistema de gestión</p>
+      <div className="px-6 py-5 border-b border-white/10 flex items-center gap-3">
+        <img src={hbLogo} alt="HB Servicios" className="w-9 h-9 rounded-lg" />
+        <div>
+          <h1 className="text-lg font-bold tracking-tight leading-tight">HB Servicios</h1>
+          <p className="text-xs text-white/40">Sistema de gestión</p>
+        </div>
       </div>
 
       <nav className="flex-1 px-3 py-4 space-y-1 overflow-y-auto">

@@ -52,9 +52,9 @@ export class ExpensesService {
     }
 
     const expense = this.expensesRepository.create({
-      description: dto.description,
+      description: dto.description ?? null,
       amount: dto.amount.toFixed(2),
-      category: dto.category ?? (dto.isExchange ? 'Canje con proveedor' : undefined),
+      category: dto.category,
       date: dto.date,
       supplier,
       isExchange: Boolean(dto.isExchange),
@@ -74,12 +74,16 @@ export class ExpensesService {
     // que en pedidos: ver avance-fase2.md sección 3.3).
     for (let i = 0; i < itemDtos.length; i++) {
       const product = products[i];
-      await this.productsService.adjustStock(product.id, {
-        delta: itemDtos[i].quantity,
-        reason: dto.isExchange
-          ? `Canje con proveedor - gasto #${saved.id}`
-          : `Compra - gasto #${saved.id}`,
-      });
+      await this.productsService.adjustStock(
+        product.id,
+        {
+          delta: itemDtos[i].quantity,
+          reason: dto.isExchange
+            ? `Canje con proveedor - gasto #${saved.id}`
+            : `Compra - gasto #${saved.id}`,
+        },
+        { allowPurchase: true },
+      );
 
       if (dto.isExchange) {
         await this.productsService.adjustStock(product.linkedEmptyProduct!.id, {

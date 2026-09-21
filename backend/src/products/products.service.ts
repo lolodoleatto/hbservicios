@@ -8,6 +8,20 @@ import { CreateProductDto } from './dto/create-product.dto';
 import { UpdateProductDto } from './dto/update-product.dto';
 import { AdjustStockDto } from './dto/adjust-stock.dto';
 
+// Quita acentos, pasa a minúscula y saca la palabra "llena/o" o "vacía/o"
+// (con o sin plural) para poder comparar el resto del nombre sin importar
+// el género/número, p.ej. "Garrafa 10kg llena" y "Garrafa 10kg vacía" dan
+// ambas "garrafa 10kg".
+function normalizeForLinkMatch(name: string): string {
+  return name
+    .normalize('NFD')
+    .replace(/[̀-ͯ]/g, '')
+    .toLowerCase()
+    .replace(/\b(llenas?|llenos?|vacias?|vacios?)\b/g, '')
+    .replace(/\s+/g, ' ')
+    .trim();
+}
+
 @Injectable()
 export class ProductsService {
   constructor(
@@ -19,39 +33,35 @@ export class ProductsService {
     private readonly stockMovementsRepository: Repository<StockMovement>,
   ) {}
 
-  private async resolveLinkedEmptyProduct(
-    type: ProductType,
-    linkedEmptyProductId: number | null | undefined,
-  ): Promise<Product | null | undefined> {
-    if (linkedEmptyProductId === undefined) return undefined;
-    if (linkedEmptyProductId === null) return null;
+  // El vínculo entre una garrafa llena y su vacía correspondiente ya no se
+  // elige a mano: se infiere por nombre (mismo nombre salvo "llena"/"vacía"),
+  // así el alta es más simple y no depende de que alguien recuerde tildar un
+  // select. Si no hay exactamente una coincidencia, queda sin vincular (se
+  // puede resolver renombrando el producto para que los nombres coincidan y
+  // volviendo a guardar).
+  private async inferLinkedEmptyProduct(fullName: string): Promise<Product | null> {
+    const target = normalizeForLinkMatch(fullName);
+    if (!target) return null;
 
-    if (type !== ProductType.GAS_CYLINDER_FULL) {
-      throw new BadRequestException(
-        'Solo un producto de tipo garrafa llena puede tener un vacío vinculado',
-      );
-    }
-    const emptyProduct = await this.findOne(linkedEmptyProductId);
-    if (emptyProduct.type !== ProductType.GAS_CYLINDER_EMPTY) {
-      throw new BadRequestException(
-        `"${emptyProduct.name}" no es un producto de tipo garrafa vacía`,
-      );
-    }
-    return emptyProduct;
+    const emptyProducts = await this.productsRepository.find({
+      where: { type: ProductType.GAS_CYLINDER_EMPTY },
+    });
+    const matches = emptyProducts.filter((p) => normalizeForLinkMatch(p.name) === target);
+    return matches.length === 1 ? matches[0] : null;
   }
 
   async create(dto: CreateProductDto): Promise<Product> {
-    const linkedEmptyProduct = await this.resolveLinkedEmptyProduct(
-      dto.type,
-      dto.linkedEmptyProductId,
-    );
+    const linkedEmptyProduct =
+      dto.type === ProductType.GAS_CYLINDER_FULL
+        ? await this.inferLinkedEmptyProduct(dto.name)
+        : null;
 
     const product = this.productsRepository.create({
       name: dto.name,
       type: dto.type,
       currentPrice: dto.currentPrice.toFixed(2),
       stock: dto.stock ?? 0,
-      linkedEmptyProduct: linkedEmptyProduct ?? null,
+      linkedEmptyProduct,
     });
     const saved = await this.productsRepository.save(product);
     const productRef = { id: saved.id } as Product;
@@ -104,16 +114,18 @@ export class ProductsService {
       dto.currentPrice !== undefined &&
       dto.currentPrice.toFixed(2) !== product.currentPrice;
 
-    const linkedEmptyProduct = await this.resolveLinkedEmptyProduct(
-      dto.type ?? product.type,
-      dto.linkedEmptyProductId,
-    );
+    const resultingType = dto.type ?? product.type;
+    const resultingName = dto.name ?? product.name;
+    const linkedEmptyProduct =
+      resultingType === ProductType.GAS_CYLINDER_FULL
+        ? await this.inferLinkedEmptyProduct(resultingName)
+        : null;
 
     if (dto.name !== undefined) product.name = dto.name;
     if (dto.type !== undefined) product.type = dto.type;
     if (dto.active !== undefined) product.active = dto.active;
     if (priceChanged) product.currentPrice = dto.currentPrice!.toFixed(2);
-    if (linkedEmptyProduct !== undefined) product.linkedEmptyProduct = linkedEmptyProduct;
+    product.linkedEmptyProduct = linkedEmptyProduct;
 
     // Guardar el producto ANTES de insertar el historial: hacerlo después
     // (con product.priceHistory todavía cargado en memoria) pisaba el
@@ -132,10 +144,18 @@ export class ProductsService {
     return this.findOne(id);
   }
 
-  async adjustStock(id: number, dto: AdjustStockDto): Promise<Product> {
+  async adjustStock(
+    id: number,
+    dto: AdjustStockDto,
+    options: { allowPurchase?: boolean } = {},
+  ): Promise<Product> {
     const product = await this.findOne(id);
 
-    if (dto.delta > 0 && product.type !== ProductType.GAS_CYLINDER_EMPTY) {
+    if (
+      dto.delta > 0 &&
+      product.type !== ProductType.GAS_CYLINDER_EMPTY &&
+      !options.allowPurchase
+    ) {
       throw new BadRequestException(
         `Para sumar stock de "${product.name}" hay que cargar un gasto vinculado (así queda el costo registrado). Los envases vacíos sí se pueden ajustar libremente acá.`,
       );

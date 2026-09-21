@@ -89,9 +89,9 @@ function Expenses() {
     setError('')
     try {
       const payload = {
-        description: form.description,
+        category: form.category,
+        description: form.description || undefined,
         amount: Number(form.amount),
-        category: form.category || undefined,
         date: form.date,
         supplierId: form.supplierId ? Number(form.supplierId) : undefined,
       }
@@ -140,21 +140,14 @@ function Expenses() {
       <form onSubmit={handleSubmit} className="bg-white shadow-sm rounded-lg p-4 mb-6">
         <div className="flex flex-wrap gap-3 items-end mb-3">
           <div>
-            <label className="block text-xs text-slate-500 mb-1">Descripción</label>
-            <input
-              value={form.description}
-              onChange={(e) => setForm({ ...form, description: e.target.value })}
-              required
-              className="border border-slate-300 rounded px-2 py-1 transition-shadow focus:outline-none focus:ring-2 focus:ring-brand-red/30 focus:border-brand-red"
-            />
-          </div>
-          <div>
             <label className="block text-xs text-slate-500 mb-1">Categoría</label>
             <input
               value={form.category}
               onChange={(e) => setForm({ ...form, category: e.target.value })}
               placeholder="Alquiler, sueldos, combustible..."
               list="expense-categories"
+              required
+              autoFocus
               className="border border-slate-300 rounded px-2 py-1 transition-shadow focus:outline-none focus:ring-2 focus:ring-brand-red/30 focus:border-brand-red"
             />
             <datalist id="expense-categories">
@@ -208,6 +201,18 @@ function Expenses() {
               className="border border-slate-300 rounded px-2 py-1 transition-shadow focus:outline-none focus:ring-2 focus:ring-brand-red/30 focus:border-brand-red"
             />
           </div>
+        </div>
+
+        <div className="mb-3">
+          <label className="block text-xs text-slate-500 mb-1">
+            Descripción <span className="text-slate-400 font-normal">(opcional)</span>
+          </label>
+          <input
+            value={form.description}
+            onChange={(e) => setForm({ ...form, description: e.target.value })}
+            placeholder="Detalle adicional, si hace falta"
+            className="border border-slate-300 rounded px-2 py-1 w-full transition-shadow focus:outline-none focus:ring-2 focus:ring-brand-red/30 focus:border-brand-red"
+          />
         </div>
 
         <div className="border-t border-slate-100 pt-3 mb-3">
@@ -340,8 +345,8 @@ function Expenses() {
           <thead className="bg-slate-50 text-slate-500 text-left">
             <tr>
               <th className="px-4 py-2">Fecha</th>
-              <th className="px-4 py-2">Descripción</th>
               <th className="px-4 py-2">Categoría</th>
+              <th className="px-4 py-2">Descripción</th>
               <th className="px-4 py-2">Proveedor</th>
               <th className="px-4 py-2">Ingreso de stock</th>
               <th className="px-4 py-2">Monto</th>
@@ -357,8 +362,8 @@ function Expenses() {
                     <td className="px-4 py-2">
                       {new Date(exp.date).toLocaleDateString('es-AR', { timeZone: 'UTC' })}
                     </td>
-                    <td className="px-4 py-2">{exp.description}</td>
                     <td className="px-4 py-2">{exp.category || '-'}</td>
+                    <td className="px-4 py-2">{exp.description || '-'}</td>
                     <td className="px-4 py-2">{exp.supplier?.name || '-'}</td>
                     <td className="px-4 py-2">
                       {expItems.length === 0 ? (

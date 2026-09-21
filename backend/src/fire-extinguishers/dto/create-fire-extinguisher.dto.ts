@@ -1,4 +1,4 @@
-import { IsDateString, IsInt, IsOptional, IsString } from 'class-validator';
+import { IsDateString, IsInt, IsNumber, IsOptional, IsString, Min } from 'class-validator';
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 
 export class CreateFireExtinguisherDto {
@@ -11,6 +11,15 @@ export class CreateFireExtinguisherDto {
   productId: number;
 
   @ApiPropertyOptional({
+    example: 8000,
+    description: 'Monto cobrado por la recarga (opcional)',
+  })
+  @IsOptional()
+  @IsNumber()
+  @Min(0)
+  amount?: number;
+
+  @ApiPropertyOptional({
     example: '2026-08-19',
     description: 'Vacío = hoy',
   })
@@ -20,7 +29,7 @@ export class CreateFireExtinguisherDto {
 
   @ApiPropertyOptional({
     example: '2027-08-19',
-    description: 'Vacío = fecha de venta + 1 año',
+    description: 'Vacío = fecha de recarga + 1 año',
   })
   @IsOptional()
   @IsDateString()

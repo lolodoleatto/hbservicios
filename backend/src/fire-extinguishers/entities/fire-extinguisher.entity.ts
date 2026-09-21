@@ -26,9 +26,14 @@ export class FireExtinguisher {
   soldAt: string;
 
   // Por defecto soldAt + 1 año, pero se puede pisar a mano (recarga con
-  // vencimiento distinto, venta retroactiva, etc.)
+  // vencimiento distinto, carga retroactiva, etc.)
   @Column({ type: 'date' })
   expiresAt: string;
+
+  // Monto cobrado por la recarga (opcional — no todas las cargas históricas
+  // lo tienen registrado).
+  @Column('decimal', { precision: 10, scale: 2, nullable: true })
+  amount: string | null;
 
   @Column({ nullable: true })
   notes: string;

@@ -15,8 +15,8 @@ export class Expense {
   @PrimaryGeneratedColumn()
   id: number;
 
-  @Column()
-  description: string;
+  @Column({ type: 'varchar', nullable: true })
+  description: string | null;
 
   // Monto total del gasto. Si tiene líneas de productos, por defecto es la
   // suma de sus subtotales, pero se puede pisar a mano (redondeos,

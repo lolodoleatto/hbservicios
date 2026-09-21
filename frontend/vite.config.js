@@ -17,8 +17,8 @@ export default defineConfig({
         name: 'HB Servicios',
         short_name: 'HB Servicios',
         description: 'Sistema de gestión interna — stock, clientes y pedidos',
-        theme_color: '#1e293b',
-        background_color: '#f1f5f9',
+        theme_color: '#1b1b1b',
+        background_color: '#dddddd',
         display: 'standalone',
         start_url: '/',
         icons: [

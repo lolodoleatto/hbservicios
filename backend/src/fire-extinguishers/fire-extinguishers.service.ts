@@ -26,6 +26,10 @@ export class FireExtinguishersService {
     private readonly productsService: ProductsService,
   ) {}
 
+  // Este módulo registra RECARGAS de matafuegos que el cliente ya tiene
+  // (la venta del matafuego nuevo se hace por Pedidos, que ya guarda su
+  // propio vencimiento). Por eso no toca stock: recargar no es entregar una
+  // unidad nueva, es un servicio sobre la que el cliente ya tiene.
   async create(dto: CreateFireExtinguisherDto): Promise<FireExtinguisher> {
     const client = await this.clientsService.findOne(dto.clientId);
     const product = await this.productsService.findOne(dto.productId);
@@ -33,11 +37,6 @@ export class FireExtinguishersService {
     if (product.type !== ProductType.FIRE_EXTINGUISHER) {
       throw new BadRequestException(
         `"${product.name}" no es un producto de tipo matafuego`,
-      );
-    }
-    if (product.stock < 1) {
-      throw new BadRequestException(
-        `Stock insuficiente para "${product.name}" (disponible: ${product.stock})`,
       );
     }
 
@@ -49,16 +48,10 @@ export class FireExtinguishersService {
       product,
       soldAt,
       expiresAt,
+      amount: dto.amount !== undefined ? dto.amount.toFixed(2) : null,
       notes: dto.notes,
     });
     const saved = await this.fireExtinguishersRepository.save(fireExtinguisher);
-
-    // Guardado primero, recién ahora se descuenta stock (misma lógica que
-    // en pedidos y gastos: ver avance-fase2.md sección 3.3).
-    await this.productsService.adjustStock(product.id, {
-      delta: -1,
-      reason: `Venta matafuego #${saved.id}`,
-    });
 
     return this.findOne(saved.id);
   }

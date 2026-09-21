@@ -393,7 +393,7 @@ function Reports() {
                   {a.productName} x{a.quantity}
                 </td>
                 <td className="px-4 py-2">
-                  {a.orderNumber ? `#${a.orderNumber}` : 'Carga directa'}
+                  {a.orderNumber ? `#${a.orderNumber}` : 'Recarga'}
                 </td>
                 <td className="px-4 py-2">
                   {new Date(a.expiresAt).toLocaleDateString('es-AR')}
