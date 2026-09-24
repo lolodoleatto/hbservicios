@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import { CheckCircle2, PackagePlus, Pencil, Plus, Save, Trash2, Users, X } from 'lucide-react'
 import { clients, errorMessage, products } from './api'
+import { firstMissing } from './validation'
 
 const EMPTY_FORM = { name: '', phone: '', address: '', email: '', active: true }
 const EMPTY_LOAN_FORM = { productId: '', quantity: '1', notes: '' }
@@ -66,6 +67,11 @@ function Clients() {
   async function handleSubmit(e) {
     e.preventDefault()
     setError('')
+    const missing = firstMissing([['Nombre', form.name]])
+    if (missing) {
+      setError(missing)
+      return
+    }
     try {
       const payload = {
         ...form,
@@ -99,6 +105,14 @@ function Clients() {
   async function handleCreateLoan(e) {
     e.preventDefault()
     setError('')
+    const missing = firstMissing([
+      ['Producto', loanForm.productId],
+      ['Cantidad', loanForm.quantity],
+    ])
+    if (missing) {
+      setError(missing)
+      return
+    }
     try {
       await clients.createLoan(selectedClientId, {
         productId: Number(loanForm.productId),
@@ -131,6 +145,7 @@ function Clients() {
 
       <form
         onSubmit={handleSubmit}
+        noValidate
         className="bg-white shadow-sm rounded-lg p-4 mb-6 flex flex-wrap gap-3 items-end"
       >
         <div>
@@ -294,6 +309,7 @@ function Clients() {
           <div className="animate-fade-in">
             <form
               onSubmit={handleCreateLoan}
+              noValidate
               className="flex flex-wrap gap-3 items-end mb-4"
             >
               <div>

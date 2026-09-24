@@ -1,6 +1,7 @@
 import { Fragment, useEffect, useState } from 'react'
 import { ChevronDown, Plus, Repeat, X } from 'lucide-react'
 import { errorMessage, expenses, products, suppliers } from './api'
+import { firstMissing } from './validation'
 
 function todayIso() {
   return new Date().toISOString().slice(0, 10)
@@ -87,6 +88,28 @@ function Expenses() {
   async function handleSubmit(e) {
     e.preventDefault()
     setError('')
+    const missing = firstMissing([
+      ['Categoría', form.category],
+      ['Monto total', form.amount],
+      ['Fecha', form.date],
+    ])
+    if (missing) {
+      setError(missing)
+      return
+    }
+    if (isStockEntry) {
+      for (const [i, it] of items.entries()) {
+        const itemMissing = firstMissing([
+          [`Producto (línea ${i + 1})`, it.productId],
+          [`Cantidad (línea ${i + 1})`, it.quantity],
+          [`Precio unitario (línea ${i + 1})`, it.unitPrice],
+        ])
+        if (itemMissing) {
+          setError(itemMissing)
+          return
+        }
+      }
+    }
     try {
       const payload = {
         category: form.category,
@@ -96,15 +119,12 @@ function Expenses() {
         supplierId: form.supplierId ? Number(form.supplierId) : undefined,
       }
       if (isStockEntry) {
-        const validItems = items.filter((it) => it.productId && it.quantity && it.unitPrice !== '')
-        if (validItems.length > 0) {
-          payload.items = validItems.map((it) => ({
-            productId: Number(it.productId),
-            quantity: Number(it.quantity),
-            unitPrice: Number(it.unitPrice),
-          }))
-          payload.isExchange = isExchange
-        }
+        payload.items = items.map((it) => ({
+          productId: Number(it.productId),
+          quantity: Number(it.quantity),
+          unitPrice: Number(it.unitPrice),
+        }))
+        payload.isExchange = isExchange
       }
       await expenses.create(payload)
       resetForm()
@@ -137,7 +157,7 @@ function Expenses() {
         </p>
       )}
 
-      <form onSubmit={handleSubmit} className="bg-white shadow-sm rounded-lg p-4 mb-6">
+      <form onSubmit={handleSubmit} noValidate className="bg-white shadow-sm rounded-lg p-4 mb-6">
         <div className="flex flex-wrap gap-3 items-end mb-3">
           <div>
             <label className="block text-xs text-slate-500 mb-1">Categoría</label>

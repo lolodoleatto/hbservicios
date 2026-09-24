@@ -58,7 +58,9 @@ function App() {
       <div className="md:pl-60">
         <header className="md:hidden sticky top-0 z-20 bg-brand-black text-white px-4 py-3 flex items-center justify-between">
           <div className="flex items-center gap-2.5">
-            <img src={hbLogo} alt="HB Servicios" className="w-8 h-8 rounded-lg" />
+            <div className="w-10 h-10 rounded-lg bg-brand-gray flex items-center justify-center shrink-0">
+              <img src={hbLogo} alt="HB Servicios" className="w-7 h-7 rounded-md" />
+            </div>
             <div>
               <p className="text-xs text-white/40 leading-none">HB Servicios</p>
               <h1 key={tab} className="text-base font-semibold leading-tight animate-fade-in-fast">

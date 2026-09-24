@@ -2,6 +2,7 @@ import { useState } from 'react'
 import { Loader2, Lock, Mail } from 'lucide-react'
 import { auth } from './api'
 import hbLogo from './assets/hb-logo.svg'
+import { firstMissing } from './validation'
 
 function Login({ onLogin }) {
   const [email, setEmail] = useState('admin@hbservicios.com')
@@ -12,6 +13,14 @@ function Login({ onLogin }) {
   async function handleSubmit(e) {
     e.preventDefault()
     setError('')
+    const missing = firstMissing([
+      ['Email', email],
+      ['Contraseña', password],
+    ])
+    if (missing) {
+      setError(missing)
+      return
+    }
     setLoading(true)
     try {
       await auth.login(email, password)
@@ -32,11 +41,16 @@ function Login({ onLogin }) {
 
       <form
         onSubmit={handleSubmit}
+        noValidate
         className="relative bg-white shadow-2xl shadow-brand-red/20 rounded-2xl p-8 w-full max-w-sm animate-pop"
       >
-        <img src={hbLogo} alt="HB Servicios" className="w-14 h-14 rounded-xl mb-4" />
-        <h1 className="text-2xl font-semibold text-brand-black mb-1">HB Servicios</h1>
-        <p className="text-slate-500 mb-6">Iniciar sesión</p>
+        <div className="text-center mb-6">
+          <div className="w-20 h-20 rounded-2xl bg-brand-gray flex items-center justify-center mx-auto mb-4">
+            <img src={hbLogo} alt="HB Servicios" className="w-14 h-14 rounded-xl" />
+          </div>
+          <h1 className="text-2xl font-semibold text-brand-black mb-1">HB Servicios</h1>
+          <p className="text-slate-500">Iniciar sesión</p>
+        </div>
 
         <label className="block text-sm text-slate-600 mb-1">Email</label>
         <div className="relative mb-4">

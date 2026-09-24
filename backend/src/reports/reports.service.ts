@@ -29,6 +29,18 @@ function dateRangeWhere(from?: string, to?: string) {
   return undefined;
 }
 
+interface FireExtinguisherAlertEntry {
+  id: string;
+  source: 'pedido' | 'directo';
+  orderNumber: number | null;
+  clientId: number | null;
+  clientName: string;
+  productId: number;
+  productName: string;
+  quantity: number;
+  expiresAt: Date;
+}
+
 @Injectable()
 export class ReportsService {
   constructor(
@@ -127,37 +139,33 @@ export class ReportsService {
   async fireExtinguisherAlerts(daysAhead = 30) {
     const limit = new Date();
     limit.setDate(limit.getDate() + daysAhead);
-    const limitDate = limit.toISOString().slice(0, 10);
     const now = new Date();
 
     // Fuente 1: matafuegos vendidos como línea de un pedido normal.
     const items = await this.orderItemsRepository.find({
-      where: { expiresAt: LessThanOrEqual(limit) },
       relations: { product: true, order: { client: true } },
     });
-    const fromOrders = items
+    const fromOrders: FireExtinguisherAlertEntry[] = items
       .filter((item) => item.product.type === ProductType.FIRE_EXTINGUISHER && item.expiresAt)
       .map((item) => ({
         id: `pedido-${item.id}`,
-        source: 'pedido' as const,
-        orderNumber: item.order.orderNumber as number | null,
+        source: 'pedido',
+        orderNumber: item.order.orderNumber ?? null,
         clientId: item.order.client?.id ?? null,
         clientName: item.order.client?.name ?? 'Consumidor final',
         productId: item.product.id,
         productName: item.product.name,
         quantity: item.quantity,
         expiresAt: item.expiresAt as Date,
-        expired: (item.expiresAt as Date) < now,
       }));
 
-    // Fuente 2: matafuegos cargados desde el módulo específico.
+    // Fuente 2: recargas cargadas desde el módulo específico.
     const direct = await this.fireExtinguishersRepository.find({
-      where: { expiresAt: LessThanOrEqual(limitDate) },
       relations: { client: true, product: true },
     });
-    const fromDirect = direct.map((fe) => ({
+    const fromDirect: FireExtinguisherAlertEntry[] = direct.map((fe) => ({
       id: `directo-${fe.id}`,
-      source: 'directo' as const,
+      source: 'directo',
       orderNumber: null,
       clientId: fe.client.id,
       clientName: fe.client.name,
@@ -165,11 +173,29 @@ export class ReportsService {
       productName: fe.product.name,
       quantity: 1,
       expiresAt: new Date(`${fe.expiresAt}T00:00:00`),
-      expired: new Date(`${fe.expiresAt}T00:00:00`) < now,
     }));
 
-    return [...fromOrders, ...fromDirect].sort(
-      (a, b) => a.expiresAt.getTime() - b.expiresAt.getTime(),
-    );
+    // Un mismo cliente puede tener varias entradas para el mismo matafuego
+    // (la venta original + recargas posteriores): nos interesa solo la más
+    // reciente, que es el vencimiento vigente — así, al recargar, la alerta
+    // vieja desaparece en vez de quedar duplicada con la nueva. Las ventas a
+    // consumidor final (sin cliente) no se pueden recargar desde acá, así
+    // que esas quedan cada una por separado.
+    const withClient = [...fromOrders, ...fromDirect].filter((e) => e.clientId !== null);
+    const withoutClient = [...fromOrders, ...fromDirect].filter((e) => e.clientId === null);
+
+    const latestByClientProduct = new Map<string, FireExtinguisherAlertEntry>();
+    for (const entry of withClient) {
+      const key = `${entry.clientId}-${entry.productId}`;
+      const current = latestByClientProduct.get(key);
+      if (!current || entry.expiresAt > current.expiresAt) {
+        latestByClientProduct.set(key, entry);
+      }
+    }
+
+    return [...latestByClientProduct.values(), ...withoutClient]
+      .filter((entry) => entry.expiresAt <= limit)
+      .map((entry) => ({ ...entry, expired: entry.expiresAt < now }))
+      .sort((a, b) => a.expiresAt.getTime() - b.expiresAt.getTime());
   }
 }

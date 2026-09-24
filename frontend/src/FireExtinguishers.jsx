@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react'
 import { AlertTriangle, CheckCircle2, Clock, FireExtinguisher, Repeat } from 'lucide-react'
 import { clients, errorMessage, fireExtinguishers, products, reports } from './api'
+import { firstMissing } from './validation'
 
 function todayIso() {
   return new Date().toISOString().slice(0, 10)
@@ -62,6 +63,15 @@ function FireExtinguishers() {
   async function handleSubmit(e) {
     e.preventDefault()
     setError('')
+    const missing = firstMissing([
+      ['Cliente', form.clientId],
+      ['Matafuego', form.productId],
+      ['Nuevo vencimiento', expiresAt],
+    ])
+    if (missing) {
+      setError(missing)
+      return
+    }
     try {
       await fireExtinguishers.create({
         clientId: Number(form.clientId),
@@ -197,7 +207,7 @@ function FireExtinguishers() {
         <FireExtinguisher size={18} className="text-brand-red" />
         Recarga de matafuego
       </h2>
-      <form onSubmit={handleSubmit} className="bg-white shadow-sm rounded-lg p-4 mb-6">
+      <form onSubmit={handleSubmit} noValidate className="bg-white shadow-sm rounded-lg p-4 mb-6">
         <div className="flex flex-wrap gap-3 items-end">
           <div>
             <label className="block text-xs text-slate-500 mb-1">Cliente</label>

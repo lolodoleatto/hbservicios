@@ -14,6 +14,7 @@ import {
   X,
 } from 'lucide-react'
 import { clients, errorMessage, orders, products } from './api'
+import { firstMissing } from './validation'
 
 const EMPTY_ITEM = { productId: '', quantity: '1', withExchange: true, expiresAt: '' }
 const EMPTY_LOAN = { productId: '', quantity: '1', notes: '' }
@@ -146,6 +147,26 @@ function Orders() {
   async function handleCreate(e) {
     e.preventDefault()
     setError('')
+    for (const [i, it] of items.entries()) {
+      const missing = firstMissing([
+        [`Producto (línea ${i + 1})`, it.productId],
+        [`Cantidad (línea ${i + 1})`, it.quantity],
+      ])
+      if (missing) {
+        setError(missing)
+        return
+      }
+    }
+    if (includeLoan) {
+      const missing = firstMissing([
+        ['Producto prestado', loan.productId],
+        ['Cantidad del préstamo', loan.quantity],
+      ])
+      if (missing) {
+        setError(missing)
+        return
+      }
+    }
     try {
       const payload = {
         clientId: clientId ? Number(clientId) : undefined,
@@ -324,7 +345,7 @@ function Orders() {
         </div>
       )}
 
-      <form onSubmit={handleCreate} className="bg-white shadow-sm rounded-lg p-4 mb-6">
+      <form onSubmit={handleCreate} noValidate className="bg-white shadow-sm rounded-lg p-4 mb-6">
         <div className="flex flex-wrap gap-3 items-end mb-4">
           <div>
             <label className="block text-xs text-slate-500 mb-1">Cliente</label>

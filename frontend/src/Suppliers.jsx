@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import { Pencil, Plus, Save, Trash2, X } from 'lucide-react'
 import { errorMessage, suppliers } from './api'
+import { firstMissing } from './validation'
 
 const EMPTY_FORM = { name: '', phone: '', address: '', email: '', active: true }
 
@@ -43,6 +44,11 @@ function Suppliers() {
   async function handleSubmit(e) {
     e.preventDefault()
     setError('')
+    const missing = firstMissing([['Nombre', form.name]])
+    if (missing) {
+      setError(missing)
+      return
+    }
     try {
       const payload = {
         ...form,
@@ -83,6 +89,7 @@ function Suppliers() {
 
       <form
         onSubmit={handleSubmit}
+        noValidate
         className="bg-white shadow-sm rounded-lg p-4 mb-6 flex flex-wrap gap-3 items-end"
       >
         <div>

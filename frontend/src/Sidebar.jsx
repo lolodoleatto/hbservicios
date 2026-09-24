@@ -5,7 +5,9 @@ function Sidebar({ tabs, active, onSelect, onLogout }) {
   return (
     <aside className="hidden md:flex md:flex-col md:w-60 md:fixed md:inset-y-0 bg-brand-black text-white z-30">
       <div className="px-6 py-5 border-b border-white/10 flex items-center gap-3">
-        <img src={hbLogo} alt="HB Servicios" className="w-9 h-9 rounded-lg" />
+        <div className="w-11 h-11 rounded-xl bg-brand-gray flex items-center justify-center shrink-0">
+          <img src={hbLogo} alt="HB Servicios" className="w-8 h-8 rounded-md" />
+        </div>
         <div>
           <h1 className="text-lg font-bold tracking-tight leading-tight">HB Servicios</h1>
           <p className="text-xs text-white/40">Sistema de gestión</p>

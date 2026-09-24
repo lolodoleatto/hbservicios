@@ -11,6 +11,7 @@ import {
   XCircle,
 } from 'lucide-react'
 import { errorMessage, expenses, products } from './api'
+import { firstMissing } from './validation'
 
 const TYPE_LABELS = {
   gas_cylinder_full: 'Garrafa llena',
@@ -36,6 +37,8 @@ function Products() {
   const [showInactive, setShowInactive] = useState(false)
   const [expandedId, setExpandedId] = useState(null)
   const [purchases, setPurchases] = useState([])
+  const [stockModal, setStockModal] = useState(null)
+  const [stockForm, setStockForm] = useState({ quantity: '', reason: '' })
 
   async function load() {
     setError('')
@@ -69,6 +72,14 @@ function Products() {
   async function handleSubmit(e) {
     e.preventDefault()
     setError('')
+    const missing = firstMissing([
+      ['Nombre', form.name],
+      ['Precio', form.currentPrice],
+    ])
+    if (missing) {
+      setError(missing)
+      return
+    }
     try {
       if (editingId) {
         await products.update(editingId, {
@@ -93,26 +104,38 @@ function Products() {
     }
   }
 
-  async function handleAdjustStock(product) {
-    const isEmpty = product.type === 'gas_cylinder_empty'
-    if (isEmpty) {
-      const delta = window.prompt('¿Cuánto stock sumar o restar? (negativo para restar)')
-      if (!delta || Number(delta) === 0) return
-      const reason = window.prompt('Motivo del ajuste') || 'Ajuste manual'
-      try {
-        await products.adjustStock(product.id, Number(delta), reason)
-        load()
-      } catch (err) {
-        setError(errorMessage(err))
-      }
+  function openStockModal(product) {
+    setStockModal({ product, isEmpty: product.type === 'gas_cylinder_empty' })
+    setStockForm({ quantity: '', reason: '' })
+    setError('')
+  }
+
+  function closeStockModal() {
+    setStockModal(null)
+  }
+
+  async function submitStockAdjust(e) {
+    e.preventDefault()
+    setError('')
+    const missing = firstMissing([['Cantidad', stockForm.quantity]])
+    if (missing) {
+      setError(missing)
       return
     }
-
-    const qty = window.prompt('¿Cuántas unidades dar de baja? (merma, rotura, corrección)')
-    if (!qty || Number(qty) <= 0) return
-    const reason = window.prompt('Motivo de la baja') || 'Ajuste manual'
+    const qty = Number(stockForm.quantity)
+    if (!qty || (stockModal.isEmpty ? qty === 0 : qty <= 0)) {
+      setError(
+        stockModal.isEmpty
+          ? 'La cantidad no puede ser 0'
+          : 'La cantidad a dar de baja tiene que ser mayor a 0',
+      )
+      return
+    }
+    const delta = stockModal.isEmpty ? qty : -Math.abs(qty)
+    const reason = stockForm.reason.trim() || 'Ajuste manual'
     try {
-      await products.adjustStock(product.id, -Math.abs(Number(qty)), reason)
+      await products.adjustStock(stockModal.product.id, delta, reason)
+      closeStockModal()
       load()
     } catch (err) {
       setError(errorMessage(err))
@@ -172,7 +195,7 @@ function Products() {
 
   return (
     <div className="max-w-4xl mx-auto">
-      {error && (
+      {error && !stockModal && (
         <p className="bg-red-100 text-red-700 text-sm rounded px-3 py-2 mb-4 animate-fade-in-fast">
           {error}
         </p>
@@ -180,6 +203,7 @@ function Products() {
 
       <form
         onSubmit={handleSubmit}
+        noValidate
         className="bg-white shadow-sm rounded-lg p-4 mb-6 flex flex-wrap gap-3 items-end"
       >
         <div>
@@ -348,7 +372,7 @@ function Products() {
                         <Pencil size={16} />
                       </button>
                       <button
-                        onClick={() => handleAdjustStock(p)}
+                        onClick={() => openStockModal(p)}
                         title={
                           p.type === 'gas_cylinder_empty'
                             ? 'Ajustar stock'
@@ -451,6 +475,79 @@ function Products() {
         </table>
         </div>
       </div>
+
+      {stockModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 px-4 animate-fade-in-fast">
+          <form
+            onSubmit={submitStockAdjust}
+            noValidate
+            className="bg-white shadow-2xl rounded-2xl p-5 w-full max-w-sm animate-pop"
+          >
+            <div className="flex items-center justify-between mb-1">
+              <h3 className="text-base font-semibold text-brand-black flex items-center gap-2">
+                {stockModal.isEmpty ? (
+                  <SlidersHorizontal size={17} className="text-brand-red" />
+                ) : (
+                  <TrendingDown size={17} className="text-brand-red" />
+                )}
+                {stockModal.isEmpty ? 'Ajustar stock' : 'Registrar merma o corrección'}
+              </h3>
+              <button
+                type="button"
+                onClick={closeStockModal}
+                aria-label="Cerrar"
+                className="text-slate-400 hover:text-slate-700 transition-colors"
+              >
+                <X size={18} />
+              </button>
+            </div>
+            <p className="text-sm text-slate-500 mb-4">{stockModal.product.name}</p>
+
+            {error && (
+              <p className="bg-red-100 text-red-700 text-sm rounded px-3 py-2 mb-3 animate-fade-in-fast">
+                {error}
+              </p>
+            )}
+
+            <label className="block text-xs text-slate-500 mb-1">
+              {stockModal.isEmpty ? 'Cantidad (negativo para restar)' : 'Cantidad a dar de baja'}
+            </label>
+            <input
+              type="number"
+              step="1"
+              autoFocus
+              value={stockForm.quantity}
+              onChange={(e) => setStockForm({ ...stockForm, quantity: e.target.value })}
+              className="w-full border border-slate-300 rounded-lg px-3 py-2 mb-3 transition-shadow focus:outline-none focus:ring-2 focus:ring-brand-red/30 focus:border-brand-red"
+            />
+
+            <label className="block text-xs text-slate-500 mb-1">Motivo</label>
+            <input
+              value={stockForm.reason}
+              onChange={(e) => setStockForm({ ...stockForm, reason: e.target.value })}
+              placeholder={stockModal.isEmpty ? 'Ajuste manual' : 'Merma, rotura, corrección...'}
+              className="w-full border border-slate-300 rounded-lg px-3 py-2 mb-4 transition-shadow focus:outline-none focus:ring-2 focus:ring-brand-red/30 focus:border-brand-red"
+            />
+
+            <div className="flex gap-2 justify-end">
+              <button
+                type="button"
+                onClick={closeStockModal}
+                className="text-sm text-slate-500 hover:text-slate-800 px-3 py-1.5 transition-colors"
+              >
+                Cancelar
+              </button>
+              <button
+                type="submit"
+                className="inline-flex items-center gap-1.5 bg-brand-red text-white rounded-lg px-4 py-1.5 hover:bg-brand-red-dark transition-all active:scale-95"
+              >
+                {stockModal.isEmpty ? <SlidersHorizontal size={15} /> : <TrendingDown size={15} />}
+                Confirmar
+              </button>
+            </div>
+          </form>
+        </div>
+      )}
     </div>
   )
 }
