@@ -114,18 +114,17 @@ export class ProductsService {
       dto.currentPrice !== undefined &&
       dto.currentPrice.toFixed(2) !== product.currentPrice;
 
-    const resultingType = dto.type ?? product.type;
-    const resultingName = dto.name ?? product.name;
-    const linkedEmptyProduct =
-      resultingType === ProductType.GAS_CYLINDER_FULL
-        ? await this.inferLinkedEmptyProduct(resultingName)
-        : null;
-
     if (dto.name !== undefined) product.name = dto.name;
     if (dto.type !== undefined) product.type = dto.type;
     if (dto.active !== undefined) product.active = dto.active;
     if (priceChanged) product.currentPrice = dto.currentPrice!.toFixed(2);
-    product.linkedEmptyProduct = linkedEmptyProduct;
+    // Si deja de ser garrafa/cilindro llena, el vínculo con el vacío ya no
+    // tiene sentido. Fuera de este caso, el vínculo se deja como está: se
+    // elige a mano (ver linkEmptyProduct) y no se debe recalcular solo en
+    // cada edición, para no pisar una elección manual.
+    if (product.type !== ProductType.GAS_CYLINDER_FULL) {
+      product.linkedEmptyProduct = null;
+    }
 
     // Guardar el producto ANTES de insertar el historial: hacerlo después
     // (con product.priceHistory todavía cargado en memoria) pisaba el
@@ -141,6 +140,35 @@ export class ProductsService {
       );
     }
 
+    return this.findOne(id);
+  }
+
+  // Vínculo manual: se llama sobre la garrafa/cilindro LLENA (ahí vive la FK),
+  // aunque el botón en la UI se muestre en la fila del envase VACÍO.
+  async linkEmptyProduct(
+    id: number,
+    emptyProductId: number | null,
+  ): Promise<Product> {
+    const product = await this.findOne(id);
+    if (product.type !== ProductType.GAS_CYLINDER_FULL) {
+      throw new BadRequestException(
+        `"${product.name}" no es una garrafa/cilindro llena, no puede tener un envase vacío vinculado`,
+      );
+    }
+
+    if (emptyProductId === null || emptyProductId === undefined) {
+      product.linkedEmptyProduct = null;
+    } else {
+      const emptyProduct = await this.findOne(emptyProductId);
+      if (emptyProduct.type !== ProductType.GAS_CYLINDER_EMPTY) {
+        throw new BadRequestException(
+          `"${emptyProduct.name}" no es un envase vacío`,
+        );
+      }
+      product.linkedEmptyProduct = emptyProduct;
+    }
+
+    await this.productsRepository.save(product);
     return this.findOne(id);
   }
 

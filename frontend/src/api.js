@@ -91,6 +91,12 @@ export const products = {
       body: JSON.stringify({ delta, reason }),
     })
   },
+  linkEmptyProduct(fullProductId, emptyProductId) {
+    return request(`/products/${fullProductId}/link-empty`, {
+      method: 'PATCH',
+      body: JSON.stringify({ emptyProductId }),
+    })
+  },
   deactivate(id) {
     return request(`/products/${id}`, { method: 'DELETE' })
   },

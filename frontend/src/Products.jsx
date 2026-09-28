@@ -1,6 +1,7 @@
 import { Fragment, useEffect, useState } from 'react'
 import {
   History,
+  Link2,
   Pencil,
   Plus,
   Save,
@@ -39,6 +40,8 @@ function Products() {
   const [purchases, setPurchases] = useState([])
   const [stockModal, setStockModal] = useState(null)
   const [stockForm, setStockForm] = useState({ quantity: '', reason: '' })
+  const [linkModal, setLinkModal] = useState(null)
+  const [linkForm, setLinkForm] = useState({ fullProductId: '' })
 
   async function load() {
     setError('')
@@ -142,6 +145,42 @@ function Products() {
     }
   }
 
+  function openLinkModal(emptyProduct) {
+    const currentlyLinked = list.find(
+      (p) => p.type === 'gas_cylinder_full' && p.linkedEmptyProduct?.id === emptyProduct.id,
+    )
+    setLinkModal({ emptyProduct, currentlyLinkedId: currentlyLinked?.id ?? null })
+    setLinkForm({ fullProductId: currentlyLinked ? String(currentlyLinked.id) : '' })
+    setError('')
+  }
+
+  function closeLinkModal() {
+    setLinkModal(null)
+  }
+
+  async function submitLink(e) {
+    e.preventDefault()
+    setError('')
+    const selectedId = linkForm.fullProductId ? Number(linkForm.fullProductId) : null
+    const { currentlyLinkedId, emptyProduct } = linkModal
+    if (selectedId === currentlyLinkedId) {
+      closeLinkModal()
+      return
+    }
+    try {
+      if (currentlyLinkedId) {
+        await products.linkEmptyProduct(currentlyLinkedId, null)
+      }
+      if (selectedId) {
+        await products.linkEmptyProduct(selectedId, emptyProduct.id)
+      }
+      closeLinkModal()
+      load()
+    } catch (err) {
+      setError(errorMessage(err))
+    }
+  }
+
   async function handleDeactivate(id) {
     if (!window.confirm('¿Dar de baja este producto?')) return
     try {
@@ -195,7 +234,7 @@ function Products() {
 
   return (
     <div className="max-w-4xl mx-auto">
-      {error && !stockModal && (
+      {error && !stockModal && !linkModal && (
         <p className="bg-red-100 text-red-700 text-sm rounded px-3 py-2 mb-4 animate-fade-in-fast">
           {error}
         </p>
@@ -286,9 +325,10 @@ function Products() {
         producto en la pestaña Gastos — así queda registrado a qué costo se compró. Acá solo se
         pueden registrar bajas (mermas, roturas, correcciones). Los envases <strong>vacíos</strong>{' '}
         son la excepción: su stock se puede ajustar libremente, sumando o restando, directamente
-        desde acá. Una garrafa llena se vincula sola con su vacía correspondiente si tienen el
-        mismo nombre (p. ej. "Garrafa 10kg llena" con "Garrafa 10kg vacía") — no hace falta
-        elegirlo a mano.
+        desde acá. Al crear una garrafa llena nueva, se intenta vincular sola con la vacía del
+        mismo nombre (p. ej. "Garrafa 10kg llena" con "Garrafa 10kg vacía"); para elegirlo a mano
+        o cambiarlo después, usá el botón <Link2 size={12} className="inline" /> en la fila del
+        envase vacío correspondiente.
       </p>
 
       <label className="flex items-center gap-2 text-sm text-slate-600 mb-3">
@@ -341,7 +381,7 @@ function Products() {
                       )}
                       {p.type === 'gas_cylinder_full' && !p.linkedEmptyProduct && (
                         <span className="block text-xs text-amber-600">
-                          Sin vacío vinculado (revisá que el nombre coincida)
+                          Sin vacío vinculado (vinculalo desde la fila del envase vacío)
                         </span>
                       )}
                     </td>
@@ -391,6 +431,16 @@ function Products() {
                           <TrendingDown size={16} />
                         )}
                       </button>
+                      {p.type === 'gas_cylinder_empty' && (
+                        <button
+                          onClick={() => openLinkModal(p)}
+                          title="Vincular con garrafa/cilindro llena"
+                          aria-label="Vincular con garrafa/cilindro llena"
+                          className="text-slate-600 hover:text-brand-red transition-colors"
+                        >
+                          <Link2 size={16} />
+                        </button>
+                      )}
                       {p.active ? (
                         <button
                           onClick={() => handleDeactivate(p.id)}
@@ -542,6 +592,75 @@ function Products() {
                 className="inline-flex items-center gap-1.5 bg-brand-red text-white rounded-lg px-4 py-1.5 hover:bg-brand-red-dark transition-all active:scale-95"
               >
                 {stockModal.isEmpty ? <SlidersHorizontal size={15} /> : <TrendingDown size={15} />}
+                Confirmar
+              </button>
+            </div>
+          </form>
+        </div>
+      )}
+
+      {linkModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 px-4 animate-fade-in-fast">
+          <form
+            onSubmit={submitLink}
+            noValidate
+            className="bg-white shadow-2xl rounded-2xl p-5 w-full max-w-sm animate-pop"
+          >
+            <div className="flex items-center justify-between mb-1">
+              <h3 className="text-base font-semibold text-brand-black flex items-center gap-2">
+                <Link2 size={17} className="text-brand-red" />
+                Vincular envase vacío
+              </h3>
+              <button
+                type="button"
+                onClick={closeLinkModal}
+                aria-label="Cerrar"
+                className="text-slate-400 hover:text-slate-700 transition-colors"
+              >
+                <X size={18} />
+              </button>
+            </div>
+            <p className="text-sm text-slate-500 mb-4">{linkModal.emptyProduct.name}</p>
+
+            {error && (
+              <p className="bg-red-100 text-red-700 text-sm rounded px-3 py-2 mb-3 animate-fade-in-fast">
+                {error}
+              </p>
+            )}
+
+            <label className="block text-xs text-slate-500 mb-1">
+              Garrafa/cilindro llena correspondiente
+            </label>
+            <select
+              autoFocus
+              value={linkForm.fullProductId}
+              onChange={(e) => setLinkForm({ fullProductId: e.target.value })}
+              className="w-full border border-slate-300 rounded-lg px-3 py-2 mb-4 transition-shadow focus:outline-none focus:ring-2 focus:ring-brand-red/30 focus:border-brand-red"
+            >
+              <option value="">Sin vincular</option>
+              {list
+                .filter((p) => p.type === 'gas_cylinder_full')
+                .map((p) => (
+                  <option key={p.id} value={p.id}>
+                    {p.name}
+                    {!p.active ? ' (baja)' : ''}
+                  </option>
+                ))}
+            </select>
+
+            <div className="flex gap-2 justify-end">
+              <button
+                type="button"
+                onClick={closeLinkModal}
+                className="text-sm text-slate-500 hover:text-slate-800 px-3 py-1.5 transition-colors"
+              >
+                Cancelar
+              </button>
+              <button
+                type="submit"
+                className="inline-flex items-center gap-1.5 bg-brand-red text-white rounded-lg px-4 py-1.5 hover:bg-brand-red-dark transition-all active:scale-95"
+              >
+                <Link2 size={15} />
                 Confirmar
               </button>
             </div>

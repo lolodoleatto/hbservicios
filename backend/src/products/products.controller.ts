@@ -14,6 +14,7 @@ import { ProductsService } from './products.service';
 import { CreateProductDto } from './dto/create-product.dto';
 import { UpdateProductDto } from './dto/update-product.dto';
 import { AdjustStockDto } from './dto/adjust-stock.dto';
+import { LinkEmptyProductDto } from './dto/link-empty-product.dto';
 import { Roles } from '../auth/decorators/roles.decorator';
 import { UserRole } from '../users/entities/user.entity';
 
@@ -56,6 +57,17 @@ export class ProductsController {
     @Body() dto: AdjustStockDto,
   ) {
     return this.productsService.adjustStock(id, dto);
+  }
+
+  @Patch(':id/link-empty')
+  linkEmptyProduct(
+    @Param('id', ParseIntPipe) id: number,
+    @Body() dto: LinkEmptyProductDto,
+  ) {
+    return this.productsService.linkEmptyProduct(
+      id,
+      dto.emptyProductId ?? null,
+    );
   }
 
   @Delete(':id')
