@@ -21,10 +21,21 @@ import { RolesGuard } from './auth/guards/roles.guard';
 
 // En producción, un único proceso Node sirve tanto la API (bajo /api, ver
 // main.ts) como el build de React — así el deploy en Hostinger es un solo
-// sitio, un solo repo. En desarrollo el frontend corre aparte con Vite
-// (npm run dev) y frontend/dist no existe todavía, así que esto se salta
-// solo para no romper `npm run start:dev` del backend.
-const frontendDistPath = join(__dirname, '..', '..', 'frontend', 'dist');
+// sitio, un solo repo. Este archivo compilado puede terminar corriendo desde
+// dos ubicaciones distintas según el entorno:
+//   - backend/dist/app.module.js (build normal, local)
+//   - dist/app.module.js (paquete consolidado en la raíz que arma
+//     "npm run build" para Hostinger, con el frontend copiado a dist/public
+//     al lado — ver el script "build" del package.json de la raíz)
+// Primero se busca "public" al lado del propio archivo; si no está (caso
+// local, donde no se arma ese paquete consolidado), cae al layout viejo. En
+// desarrollo el frontend corre aparte con Vite (npm run dev) y ninguna de
+// las dos rutas existe todavía, así que esto se salta solo para no romper
+// `npm run start:dev` del backend.
+const frontendDistNearby = join(__dirname, 'public');
+const frontendDistPath = existsSync(frontendDistNearby)
+  ? frontendDistNearby
+  : join(__dirname, '..', '..', 'frontend', 'dist');
 const shouldServeFrontend = existsSync(join(frontendDistPath, 'index.html'));
 
 @Module({

@@ -3,9 +3,9 @@
   "private": true,
   "description": "HB Servicios — monorepo (backend NestJS + frontend React). El backend, ya compilado, sirve el build del frontend desde un único proceso Node (ver backend/src/app.module.ts).",
   "scripts": {
-    "build": "cd backend && npm install && npm run build",
-    "build:full": "cd frontend && npm install && npm run build && cd ../backend && npm install && npm run build",
-    "start": "node backend/dist/main.js",
+    "build": "cd backend && npm install && npm run build && cd .. && rm -rf dist && cp -r backend/dist dist && cp -r frontend/dist dist/public",
+    "build:full": "cd frontend && npm install && npm run build && cd ../backend && npm install && npm run build && cd .. && rm -rf dist && cp -r backend/dist dist && cp -r frontend/dist dist/public",
+    "start": "node dist/main.js",
     "seed:admin": "cd backend && npm run seed:admin",
     "seed:demo": "cd backend && npm run seed:demo"
   }
