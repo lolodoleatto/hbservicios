@@ -32,6 +32,7 @@ async function bootstrap() {
   const document = SwaggerModule.createDocument(app, config);
   SwaggerModule.setup('api/docs', app, document);
 
-  await app.listen(process.env.PORT ?? 3000);
+  // 0.0.0.0 explícito: en hosting el proxy no siempre llega por localhost.
+  await app.listen(process.env.PORT ?? 3000, '0.0.0.0');
 }
 bootstrap();
