@@ -1,10 +1,15 @@
 # Dependencies
 node_modules/
 
-# Build output
+# Build output — frontend/dist y backend/dist SÍ se suben: el plan de
+# Hostinger no llega a instalar+compilar los dos proyectos dentro del
+# tiempo de build permitido, así que se compilan en local antes de cada
+# deploy y se commitean ya listos (ver "build:full" en package.json).
 dist/
 dist-ssr/
 build/
+!frontend/dist/
+!backend/dist/
 
 # Env files (keep .env.example tracked)
 .env

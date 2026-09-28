@@ -46,7 +46,7 @@ cp .env.example .env   # completar con tus datos de conexión
 npm run start:dev
 ```
 
-Queda escuchando en `http://localhost:3000`. La documentación interactiva de la API (Swagger) está en `http://localhost:3000/api`.
+Queda escuchando en `http://localhost:3000`, con toda la API bajo `/api` (por ejemplo `http://localhost:3000/api/health`). La documentación interactiva (Swagger) está en `http://localhost:3000/api/docs`.
 
 Variables de entorno (`backend/.env`):
 
@@ -121,3 +121,18 @@ HbApp/
 ## PWA / uso offline
 
 La app se puede instalar desde el navegador (celular o escritorio). Con la conexión caída se pueden seguir cargando pedidos nuevos —quedan en cola local y se sincronizan solos al recuperar conexión—; el resto de las funciones necesita conexión al backend.
+
+## Deploy (proceso único: backend + frontend)
+
+En producción, el backend compilado sirve directamente el build de React desde el mismo proceso Node — no hace falta desplegar frontend y backend por separado. Toda la API queda bajo `/api`, y `/` sirve el frontend (ver `backend/src/app.module.ts` y `main.ts`).
+
+**Importante:** `frontend/dist` y `backend/dist` están commiteados en el repo (excepción al `.gitignore` de `dist/`). Esto es a propósito: instalar y compilar los dos proyectos enteros no entra en el tiempo de build de un plan de hosting compartido básico. Por eso, **antes de cada deploy hay que compilar en local y subir el resultado**:
+
+```bash
+npm run build:full   # compila frontend y backend, deja los dist/ listos
+git add -A
+git commit -m "..."
+git push
+```
+
+El `npm run build` que corre el propio hosting (Hostinger, en este caso) es liviano a propósito: solo instala las dependencias de producción del backend (`cd backend && npm install --omit=dev`), asumiendo que `dist/` ya viene compilado desde el repo. El comando de arranque es `npm start` (`node backend/dist/main.js`), y las variables de entorno (`DB_HOST`, `DB_PORT`, `DB_USERNAME`, `DB_PASSWORD`, `DB_DATABASE`, `JWT_SECRET`, `JWT_EXPIRES_IN`) se cargan igual que en local, pero inyectadas por la plataforma en vez de un archivo `.env`.
