@@ -13,6 +13,11 @@ async function bootstrap() {
     }),
   );
 
+  // Todos los endpoints de la API quedan bajo /api — así, cuando este mismo
+  // proceso también sirve el build de React (ver ServeStaticModule en
+  // app.module.ts), el frontend puede vivir en "/" sin pisarse con la API.
+  app.setGlobalPrefix('api');
+
   const config = new DocumentBuilder()
     .setTitle('HB Servicios API')
     .setDescription(
@@ -25,7 +30,7 @@ async function bootstrap() {
     )
     .build();
   const document = SwaggerModule.createDocument(app, config);
-  SwaggerModule.setup('api', app, document);
+  SwaggerModule.setup('api/docs', app, document);
 
   await app.listen(process.env.PORT ?? 3000);
 }

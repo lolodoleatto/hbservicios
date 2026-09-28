@@ -1,7 +1,10 @@
+import { existsSync } from 'fs';
+import { join } from 'path';
 import { Module } from '@nestjs/common';
 import { APP_GUARD } from '@nestjs/core';
 import { ConfigModule, ConfigService } from '@nestjs/config';
 import { TypeOrmModule } from '@nestjs/typeorm';
+import { ServeStaticModule } from '@nestjs/serve-static';
 import { AppController } from './app.controller';
 import { AppService } from './app.service';
 import { UsersModule } from './users/users.module';
@@ -16,11 +19,33 @@ import { AuthModule } from './auth/auth.module';
 import { JwtAuthGuard } from './auth/guards/jwt-auth.guard';
 import { RolesGuard } from './auth/guards/roles.guard';
 
+// En producción, un único proceso Node sirve tanto la API (bajo /api, ver
+// main.ts) como el build de React — así el deploy en Hostinger es un solo
+// sitio, un solo repo. En desarrollo el frontend corre aparte con Vite
+// (npm run dev) y frontend/dist no existe todavía, así que esto se salta
+// solo para no romper `npm run start:dev` del backend.
+const frontendDistPath = join(__dirname, '..', '..', 'frontend', 'dist');
+const shouldServeFrontend = existsSync(join(frontendDistPath, 'index.html'));
+
 @Module({
   imports: [
     ConfigModule.forRoot({
       isGlobal: true,
+      // Ruta explícita en vez de relativa al cwd: así "npm start" encuentra
+      // backend/.env sin importar desde qué carpeta se lance el proceso. En
+      // producción (Hostinger) este archivo no existe -ni debe subirse al
+      // repo- y las variables las inyecta la plataforma directamente como
+      // variables de entorno reales, que @nestjs/config también respeta.
+      envFilePath: join(__dirname, '..', '.env'),
     }),
+    ...(shouldServeFrontend
+      ? [
+          ServeStaticModule.forRoot({
+            rootPath: frontendDistPath,
+            exclude: ['/api/{*path}'],
+          }),
+        ]
+      : []),
     TypeOrmModule.forRootAsync({
       imports: [ConfigModule],
       inject: [ConfigService],

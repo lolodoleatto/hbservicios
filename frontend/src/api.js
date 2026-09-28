@@ -1,6 +1,13 @@
 import { db } from './db'
 
-const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3000'
+// En producción el mismo proceso Node sirve el frontend y la API bajo
+// /api (ver ServeStaticModule/setGlobalPrefix en el backend), así que basta
+// una ruta relativa. En desarrollo, Vite corre en otro puerto que el
+// backend (5173 vs 3000), así que hace falta el host completo. Se puede
+// pisar con VITE_API_URL si hiciera falta otro esquema de despliegue.
+const API_URL =
+  import.meta.env.VITE_API_URL ||
+  (import.meta.env.DEV ? 'http://localhost:3000/api' : '/api')
 
 // fetch() rechaza con un TypeError cuando no hay conexión (a diferencia de
 // un error HTTP normal, que ya llega como Error con el mensaje del backend).
