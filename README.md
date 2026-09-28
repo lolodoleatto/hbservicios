@@ -126,13 +126,13 @@ La app se puede instalar desde el navegador (celular o escritorio). Con la conex
 
 En producción, el backend compilado sirve directamente el build de React desde el mismo proceso Node — no hace falta desplegar frontend y backend por separado. Toda la API queda bajo `/api`, y `/` sirve el frontend (ver `backend/src/app.module.ts` y `main.ts`).
 
-**Importante:** `frontend/dist` y `backend/dist` están commiteados en el repo (excepción al `.gitignore` de `dist/`). Esto es a propósito: instalar y compilar los dos proyectos enteros no entra en el tiempo de build de un plan de hosting compartido básico. Por eso, **antes de cada deploy hay que compilar en local y subir el resultado**:
+**Importante:** `frontend/dist` está commiteado en el repo (excepción puntual al `.gitignore` de `dist/`, tanto el de la raíz como el de `frontend/`). Esto es a propósito: instalar y compilar los dos proyectos enteros en un solo build no entra en el tiempo permitido por un plan de hosting compartido básico. Por eso, **antes de cada deploy hay que compilar el frontend en local y subir el resultado**:
 
 ```bash
-npm run build:full   # compila frontend y backend, deja los dist/ listos
+npm run build:full   # compila frontend y backend en local
 git add -A
 git commit -m "..."
 git push
 ```
 
-El `npm run build` que corre el propio hosting (Hostinger, en este caso) es liviano a propósito: solo instala las dependencias de producción del backend (`cd backend && npm install --omit=dev`), asumiendo que `dist/` ya viene compilado desde el repo. El comando de arranque es `npm start` (`node backend/dist/main.js`), y las variables de entorno (`DB_HOST`, `DB_PORT`, `DB_USERNAME`, `DB_PASSWORD`, `DB_DATABASE`, `JWT_SECRET`, `JWT_EXPIRES_IN`) se cargan igual que en local, pero inyectadas por la plataforma en vez de un archivo `.env`.
+`backend/dist` en cambio NO se sube (sigue en `.gitignore`): el `npm run build` que corre el propio hosting instala las dependencias del backend y lo compila ahí mismo (`cd backend && npm install && npm run build`) — por sí solo entra cómodo en el tiempo de build, y así queda siempre compilado con el Node/entorno real del hosting. El comando de arranque es `npm start` (`node backend/dist/main.js`), y las variables de entorno (`DB_HOST`, `DB_PORT`, `DB_USERNAME`, `DB_PASSWORD`, `DB_DATABASE`, `JWT_SECRET`, `JWT_EXPIRES_IN`) se cargan igual que en local, pero inyectadas por la plataforma en vez de un archivo `.env`.
