@@ -13,6 +13,14 @@ import { ProductType } from '../products/entities/product.entity';
 import { Expense } from '../expenses/entities/expense.entity';
 import { FireExtinguisher } from '../fire-extinguishers/entities/fire-extinguisher.entity';
 
+interface SupplierPurchaseEntry {
+  supplierId: number;
+  supplierName: string;
+  totalAmount: number;
+  purchaseCount: number;
+  purchases: { id: number; date: string; amount: string; description: string | null }[];
+}
+
 function dateTimeRangeWhere(from?: string, to?: string) {
   if (from && to) {
     return Between(new Date(`${from}T00:00:00`), new Date(`${to}T23:59:59.999`));
@@ -57,9 +65,9 @@ export class ReportsService {
   ) {}
 
   async salesReport(from?: string, to?: string) {
-    const createdAt = dateTimeRangeWhere(from, to);
+    const date = dateRangeWhere(from, to);
     const orders = await this.ordersRepository.find({
-      where: createdAt ? { createdAt } : {},
+      where: date ? { date } : {},
       relations: { items: { product: true } },
     });
 
@@ -109,11 +117,10 @@ export class ReportsService {
   }
 
   async balance(from?: string, to?: string) {
-    const createdAt = dateTimeRangeWhere(from, to);
     const date = dateRangeWhere(from, to);
 
     const orders = await this.ordersRepository.find({
-      where: createdAt ? { createdAt } : {},
+      where: date ? { date } : {},
     });
     const expensesList = await this.expensesRepository.find({
       where: date ? { date } : {},
@@ -197,5 +204,39 @@ export class ReportsService {
       .filter((entry) => entry.expiresAt <= limit)
       .map((entry) => ({ ...entry, expired: entry.expiresAt < now }))
       .sort((a, b) => a.expiresAt.getTime() - b.expiresAt.getTime());
+  }
+
+  async purchasesBySupplier(from?: string, to?: string) {
+    const date = dateRangeWhere(from, to);
+    const expensesList = await this.expensesRepository.find({
+      where: date ? { date } : {},
+      relations: { supplier: true },
+      order: { date: 'DESC' },
+    });
+
+    const bySupplier = new Map<number, SupplierPurchaseEntry>();
+    for (const expense of expensesList) {
+      if (!expense.supplier) continue;
+      const entry = bySupplier.get(expense.supplier.id) ?? {
+        supplierId: expense.supplier.id,
+        supplierName: expense.supplier.name,
+        totalAmount: 0,
+        purchaseCount: 0,
+        purchases: [],
+      };
+      entry.totalAmount += Number(expense.amount);
+      entry.purchaseCount += 1;
+      entry.purchases.push({
+        id: expense.id,
+        date: expense.date,
+        amount: expense.amount,
+        description: expense.description,
+      });
+      bySupplier.set(expense.supplier.id, entry);
+    }
+
+    return [...bySupplier.values()]
+      .sort((a, b) => a.supplierName.localeCompare(b.supplierName))
+      .map((s) => ({ ...s, totalAmount: s.totalAmount.toFixed(2) }));
   }
 }

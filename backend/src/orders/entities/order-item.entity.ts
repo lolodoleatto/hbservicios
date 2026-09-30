@@ -34,4 +34,9 @@ export class OrderItem {
   // Solo aplica a matafuegos: fecha de venta + 1 año, usado para alertas de vencimiento
   @Column({ type: 'timestamp', nullable: true })
   expiresAt: Date | null;
+
+  // Se guarda para poder revertir el efecto de stock con precisión si el
+  // pedido se edita o se elimina más adelante (ver OrdersService).
+  @Column({ default: true })
+  withExchange: boolean;
 }

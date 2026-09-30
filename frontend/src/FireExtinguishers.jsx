@@ -1,5 +1,15 @@
 import { useEffect, useRef, useState } from 'react'
-import { AlertTriangle, CheckCircle2, Clock, FireExtinguisher, Repeat } from 'lucide-react'
+import {
+  AlertTriangle,
+  CheckCircle2,
+  Clock,
+  FireExtinguisher,
+  Pencil,
+  Repeat,
+  Save,
+  Trash2,
+  X,
+} from 'lucide-react'
 import { clients, errorMessage, fireExtinguishers, products, reports } from './api'
 import { firstMissing } from './validation'
 
@@ -26,8 +36,11 @@ function FireExtinguishers() {
   const [alerts, setAlerts] = useState([])
   const [daysAhead, setDaysAhead] = useState('30')
   const [error, setError] = useState('')
+  const [editingId, setEditingId] = useState(null)
   const [form, setForm] = useState(EMPTY_FORM)
+  const [soldAt, setSoldAt] = useState(todayIso())
   const [expiresAt, setExpiresAt] = useState(plusOneYear(todayIso()))
+  const [expiresAtTouched, setExpiresAtTouched] = useState(false)
   const formRef = useRef(null)
 
   async function load() {
@@ -60,12 +73,46 @@ function FireExtinguishers() {
     loadAlerts()
   }, [daysAhead])
 
+  // Vencimiento sugerido = fecha de recarga + 1 año, salvo que el usuario ya
+  // lo haya tocado a mano.
+  useEffect(() => {
+    if (expiresAtTouched) return
+    setExpiresAt(plusOneYear(soldAt))
+  }, [soldAt, expiresAtTouched])
+
+  function resetForm() {
+    setEditingId(null)
+    setForm(EMPTY_FORM)
+    setSoldAt(todayIso())
+    setExpiresAt(plusOneYear(todayIso()))
+    setExpiresAtTouched(false)
+  }
+
+  function startEdit(fe) {
+    setError('')
+    setEditingId(fe.id)
+    setForm({
+      clientId: String(fe.client.id),
+      productId: String(fe.product.id),
+      amount: fe.amount || '',
+    })
+    setSoldAt(fe.soldAt)
+    setExpiresAt(fe.expiresAt)
+    setExpiresAtTouched(true)
+    formRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' })
+  }
+
+  function cancelEdit() {
+    resetForm()
+  }
+
   async function handleSubmit(e) {
     e.preventDefault()
     setError('')
     const missing = firstMissing([
       ['Cliente', form.clientId],
       ['Matafuego', form.productId],
+      ['Fecha de recarga', soldAt],
       ['Nuevo vencimiento', expiresAt],
     ])
     if (missing) {
@@ -73,14 +120,32 @@ function FireExtinguishers() {
       return
     }
     try {
-      await fireExtinguishers.create({
+      const payload = {
         clientId: Number(form.clientId),
         productId: Number(form.productId),
         amount: form.amount !== '' ? Number(form.amount) : undefined,
+        soldAt,
         expiresAt,
-      })
-      setForm(EMPTY_FORM)
-      setExpiresAt(plusOneYear(todayIso()))
+      }
+      if (editingId) {
+        await fireExtinguishers.update(editingId, payload)
+      } else {
+        await fireExtinguishers.create(payload)
+      }
+      resetForm()
+      load()
+      loadAlerts()
+    } catch (err) {
+      setError(errorMessage(err))
+    }
+  }
+
+  async function handleDelete(fe) {
+    if (!window.confirm('¿Eliminar esta recarga? No se puede deshacer.')) return
+    setError('')
+    try {
+      await fireExtinguishers.remove(fe.id)
+      if (editingId === fe.id) resetForm()
       load()
       loadAlerts()
     } catch (err) {
@@ -90,8 +155,10 @@ function FireExtinguishers() {
 
   function startRecharge(alert) {
     if (!alert.clientId) return
+    setEditingId(null)
     setForm({ clientId: String(alert.clientId), productId: String(alert.productId), amount: '' })
-    setExpiresAt(plusOneYear(todayIso()))
+    setSoldAt(todayIso())
+    setExpiresAtTouched(false)
     formRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' })
   }
 
@@ -208,6 +275,12 @@ function FireExtinguishers() {
         Recarga de matafuego
       </h2>
       <form onSubmit={handleSubmit} noValidate className="bg-white shadow-sm rounded-lg p-4 mb-6">
+        {editingId && (
+          <p className="flex items-center gap-1.5 text-sm text-amber-700 bg-amber-50 rounded px-3 py-1.5 mb-3">
+            <Pencil size={13} />
+            Editando la recarga.
+          </p>
+        )}
         <div className="flex flex-wrap gap-3 items-end">
           <div>
             <label className="block text-xs text-slate-500 mb-1">Cliente</label>
@@ -254,11 +327,27 @@ function FireExtinguishers() {
             />
           </div>
           <div>
-            <label className="block text-xs text-slate-500 mb-1">Nuevo vencimiento</label>
+            <label className="block text-xs text-slate-500 mb-1">Fecha de recarga</label>
+            <input
+              type="date"
+              value={soldAt}
+              onChange={(e) => setSoldAt(e.target.value)}
+              required
+              className="border border-slate-300 rounded px-2 py-1 transition-shadow focus:outline-none focus:ring-2 focus:ring-brand-red/30 focus:border-brand-red"
+            />
+          </div>
+          <div>
+            <label className="block text-xs text-slate-500 mb-1">
+              Nuevo vencimiento
+              {!expiresAtTouched && <span className="text-slate-400"> (sugerido)</span>}
+            </label>
             <input
               type="date"
               value={expiresAt}
-              onChange={(e) => setExpiresAt(e.target.value)}
+              onChange={(e) => {
+                setExpiresAt(e.target.value)
+                setExpiresAtTouched(true)
+              }}
               required
               className="border border-slate-300 rounded px-2 py-1 transition-shadow focus:outline-none focus:ring-2 focus:ring-brand-red/30 focus:border-brand-red"
             />
@@ -267,9 +356,19 @@ function FireExtinguishers() {
             type="submit"
             className="inline-flex items-center gap-1.5 bg-brand-red text-white rounded px-4 py-1.5 hover:bg-brand-red-dark transition-all active:scale-95"
           >
-            <FireExtinguisher size={15} />
-            Registrar recarga
+            {editingId ? <Save size={15} /> : <FireExtinguisher size={15} />}
+            {editingId ? 'Guardar cambios' : 'Registrar recarga'}
           </button>
+          {editingId && (
+            <button
+              type="button"
+              onClick={cancelEdit}
+              className="inline-flex items-center gap-1 text-sm text-slate-500 hover:text-slate-800 pb-1.5 transition-colors"
+            >
+              <X size={15} />
+              Cancelar
+            </button>
+          )}
         </div>
       </form>
 
@@ -284,6 +383,7 @@ function FireExtinguishers() {
               <th className="px-4 py-2">Vencimiento</th>
               <th className="px-4 py-2">Monto</th>
               <th className="px-4 py-2">Estado</th>
+              <th className="px-4 py-2"></th>
             </tr>
           </thead>
           <tbody>
@@ -310,12 +410,30 @@ function FireExtinguishers() {
                       {isExpired ? 'Vencido' : 'Vigente'}
                     </span>
                   </td>
+                  <td className="px-4 py-2 text-right space-x-3 whitespace-nowrap">
+                    <button
+                      onClick={() => startEdit(fe)}
+                      title="Editar"
+                      aria-label="Editar"
+                      className="text-slate-600 hover:text-brand-red transition-colors"
+                    >
+                      <Pencil size={16} />
+                    </button>
+                    <button
+                      onClick={() => handleDelete(fe)}
+                      title="Eliminar"
+                      aria-label="Eliminar"
+                      className="text-red-600 hover:text-red-800 transition-colors"
+                    >
+                      <Trash2 size={16} />
+                    </button>
+                  </td>
                 </tr>
               )
             })}
             {list.length === 0 && (
               <tr>
-                <td colSpan={6} className="px-4 py-6 text-center text-slate-400">
+                <td colSpan={7} className="px-4 py-6 text-center text-slate-400">
                   No hay recargas registradas todavía.
                 </td>
               </tr>

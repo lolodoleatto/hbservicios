@@ -1,8 +1,9 @@
-import { useEffect, useState } from 'react'
+import { Fragment, useEffect, useState } from 'react'
 import {
   AlertTriangle,
   ArrowUpDown,
   CheckCircle2,
+  ChevronDown,
   ClipboardList,
   FireExtinguisher,
   Percent,
@@ -114,6 +115,9 @@ function Reports() {
   const [daysAhead, setDaysAhead] = useState('30')
   const [alerts, setAlerts] = useState([])
 
+  const [purchasesBySupplier, setPurchasesBySupplier] = useState([])
+  const [expandedSupplierId, setExpandedSupplierId] = useState(null)
+
   async function loadSalesAndBalance() {
     setError('')
     try {
@@ -144,9 +148,18 @@ function Reports() {
     }
   }
 
+  async function loadPurchasesBySupplier() {
+    try {
+      setPurchasesBySupplier(await reports.purchasesBySupplier(from, to))
+    } catch (err) {
+      setError(errorMessage(err))
+    }
+  }
+
   useEffect(() => {
     loadSalesAndBalance()
     loadMovements()
+    loadPurchasesBySupplier()
     products.list().then(setProductList).catch((err) => setError(errorMessage(err)))
   }, [from, to])
 
@@ -297,6 +310,91 @@ function Reports() {
           />
         </div>
       )}
+
+      <h2 className="flex items-center gap-2 text-lg font-semibold text-slate-800 mb-3">
+        <Truck size={18} className="text-brand-red" />
+        Compras por proveedor
+      </h2>
+      <div className="bg-white shadow-sm rounded-lg overflow-hidden mb-6">
+        <div className="overflow-x-auto">
+        <table className="w-full text-sm">
+          <thead className="bg-slate-50 text-slate-500 text-left">
+            <tr>
+              <th className="px-4 py-2">Proveedor</th>
+              <th className="px-4 py-2">Compras</th>
+              <th className="px-4 py-2">Última compra</th>
+              <th className="px-4 py-2">Total comprado</th>
+            </tr>
+          </thead>
+          <tbody>
+            {purchasesBySupplier.map((s) => {
+              const isExpanded = expandedSupplierId === s.supplierId
+              return (
+                <Fragment key={s.supplierId}>
+                  <tr className="border-t border-slate-100 transition-colors hover:bg-slate-50">
+                    <td className="px-4 py-2">
+                      <button
+                        type="button"
+                        onClick={() => setExpandedSupplierId(isExpanded ? null : s.supplierId)}
+                        className="inline-flex items-center gap-1 text-slate-800 hover:text-brand-red transition-colors"
+                      >
+                        <ChevronDown
+                          size={14}
+                          className={`transition-transform duration-200 ${isExpanded ? 'rotate-180' : ''}`}
+                        />
+                        {s.supplierName}
+                      </button>
+                    </td>
+                    <td className="px-4 py-2">{s.purchaseCount}</td>
+                    <td className="px-4 py-2">
+                      {s.purchases[0]
+                        ? new Date(`${s.purchases[0].date}T00:00:00`).toLocaleDateString('es-AR')
+                        : '-'}
+                    </td>
+                    <td className="px-4 py-2">{money(s.totalAmount)}</td>
+                  </tr>
+                  {isExpanded && (
+                    <tr className="bg-slate-50 border-t border-slate-100">
+                      <td colSpan={4} className="px-4 py-3">
+                        <div className="animate-fade-in overflow-x-auto">
+                          <table className="w-full text-xs">
+                            <thead className="text-slate-500 text-left">
+                              <tr>
+                                <th className="pr-4 py-1">Fecha</th>
+                                <th className="pr-4 py-1">Descripción</th>
+                                <th className="pr-4 py-1">Monto</th>
+                              </tr>
+                            </thead>
+                            <tbody>
+                              {s.purchases.map((p) => (
+                                <tr key={p.id}>
+                                  <td className="pr-4 py-1">
+                                    {new Date(`${p.date}T00:00:00`).toLocaleDateString('es-AR')}
+                                  </td>
+                                  <td className="pr-4 py-1">{p.description || '-'}</td>
+                                  <td className="pr-4 py-1">{money(p.amount)}</td>
+                                </tr>
+                              ))}
+                            </tbody>
+                          </table>
+                        </div>
+                      </td>
+                    </tr>
+                  )}
+                </Fragment>
+              )
+            })}
+            {purchasesBySupplier.length === 0 && (
+              <tr>
+                <td colSpan={4} className="px-4 py-6 text-center text-slate-400">
+                  No hay compras con proveedor especificado en este período.
+                </td>
+              </tr>
+            )}
+          </tbody>
+        </table>
+        </div>
+      </div>
 
       <div className="flex items-center gap-3 mb-3">
         <h2 className="flex items-center gap-2 text-lg font-semibold text-slate-800">

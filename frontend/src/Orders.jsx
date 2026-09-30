@@ -4,9 +4,11 @@ import {
   ClipboardCheck,
   Clock,
   Download,
+  Pencil,
   Plus,
   RefreshCw,
   Repeat,
+  Save,
   Share2,
   Trash2,
   Wifi,
@@ -18,6 +20,10 @@ import { firstMissing } from './validation'
 
 const EMPTY_ITEM = { productId: '', quantity: '1', withExchange: true, expiresAt: '' }
 const EMPTY_LOAN = { productId: '', quantity: '1', notes: '' }
+
+function todayIso() {
+  return new Date().toISOString().slice(0, 10)
+}
 
 function plusOneYearIso(date = new Date()) {
   const d = new Date(date)
@@ -37,7 +43,9 @@ function Orders() {
   const [syncMessage, setSyncMessage] = useState('')
   const [syncing, setSyncing] = useState(false)
 
+  const [editingId, setEditingId] = useState(null)
   const [clientId, setClientId] = useState('')
+  const [date, setDate] = useState(todayIso())
   const [discount, setDiscount] = useState('0')
   const [shippingCost, setShippingCost] = useState('0')
   const [items, setItems] = useState([{ ...EMPTY_ITEM }])
@@ -144,7 +152,46 @@ function Orders() {
     setItems(items.filter((_, i) => i !== index))
   }
 
-  async function handleCreate(e) {
+  function resetForm() {
+    setEditingId(null)
+    setClientId('')
+    setDate(todayIso())
+    setDiscount('0')
+    setShippingCost('0')
+    setTotal('0')
+    setTotalTouched(false)
+    setItems([{ ...EMPTY_ITEM }])
+    setIncludeLoan(false)
+    setLoan({ ...EMPTY_LOAN })
+  }
+
+  function startEdit(order) {
+    setError('')
+    setEditingId(order.id)
+    setClientId(order.client?.id ? String(order.client.id) : '')
+    setDate(order.date || todayIso())
+    setDiscount(order.discount)
+    setShippingCost(order.shippingCost)
+    setTotal(order.total)
+    setTotalTouched(true)
+    setItems(
+      order.items.map((it) => ({
+        productId: String(it.product.id),
+        quantity: String(it.quantity),
+        withExchange: it.withExchange !== false,
+        expiresAt: it.expiresAt ? it.expiresAt.slice(0, 10) : '',
+      })),
+    )
+    setIncludeLoan(false)
+    setLoan({ ...EMPTY_LOAN })
+    window.scrollTo({ top: 0, behavior: 'smooth' })
+  }
+
+  function cancelEdit() {
+    resetForm()
+  }
+
+  async function handleSubmit(e) {
     e.preventDefault()
     setError('')
     for (const [i, it] of items.entries()) {
@@ -170,6 +217,7 @@ function Orders() {
     try {
       const payload = {
         clientId: clientId ? Number(clientId) : undefined,
+        date: date || undefined,
         discount: Number(discount) || 0,
         shippingCost: Number(shippingCost) || 0,
         total: Number(total) || 0,
@@ -179,6 +227,13 @@ function Orders() {
           withExchange: it.withExchange !== false,
           expiresAt: it.expiresAt || undefined,
         })),
+      }
+      if (editingId) {
+        await orders.update(editingId, payload)
+        resetForm()
+        load()
+        products.list().then(setProductList)
+        return
       }
       if (includeLoan && clientId && loan.productId) {
         payload.loans = [
@@ -190,14 +245,7 @@ function Orders() {
         ]
       }
       const result = await orders.create(payload)
-      setClientId('')
-      setDiscount('0')
-      setShippingCost('0')
-      setTotal('0')
-      setTotalTouched(false)
-      setItems([{ ...EMPTY_ITEM }])
-      setIncludeLoan(false)
-      setLoan({ ...EMPTY_LOAN })
+      resetForm()
       if (result?.pending) {
         setSyncMessage('Sin conexión: el pedido quedó guardado en el celular, pendiente de sincronizar.')
         loadPending()
@@ -205,6 +253,25 @@ function Orders() {
         load()
         products.list().then(setProductList)
       }
+    } catch (err) {
+      setError(errorMessage(err))
+    }
+  }
+
+  async function handleDelete(order) {
+    if (
+      !window.confirm(
+        `¿Eliminar el pedido #${order.orderNumber}? Esto revierte el stock que había movido (y el canje, si aplicaba). No se puede deshacer.`,
+      )
+    ) {
+      return
+    }
+    setError('')
+    try {
+      await orders.remove(order.id)
+      if (editingId === order.id) resetForm()
+      load()
+      products.list().then(setProductList)
     } catch (err) {
       setError(errorMessage(err))
     }
@@ -345,7 +412,13 @@ function Orders() {
         </div>
       )}
 
-      <form onSubmit={handleCreate} noValidate className="bg-white shadow-sm rounded-lg p-4 mb-6">
+      <form onSubmit={handleSubmit} noValidate className="bg-white shadow-sm rounded-lg p-4 mb-6">
+        {editingId && (
+          <p className="flex items-center gap-1.5 text-sm text-amber-700 bg-amber-50 rounded px-3 py-1.5 mb-3">
+            <Pencil size={13} />
+            Editando el pedido — al guardar se recalcula el stock según los cambios.
+          </p>
+        )}
         <div className="flex flex-wrap gap-3 items-end mb-4">
           <div>
             <label className="block text-xs text-slate-500 mb-1">Cliente</label>
@@ -361,6 +434,15 @@ function Orders() {
                 </option>
               ))}
             </select>
+          </div>
+          <div>
+            <label className="block text-xs text-slate-500 mb-1">Fecha</label>
+            <input
+              type="date"
+              value={date}
+              onChange={(e) => setDate(e.target.value)}
+              className="border border-slate-300 rounded px-2 py-1 transition-shadow focus:outline-none focus:ring-2 focus:ring-brand-red/30 focus:border-brand-red"
+            />
           </div>
           <div>
             <label className="block text-xs text-slate-500 mb-1">Descuento</label>
@@ -454,6 +536,15 @@ function Orders() {
           ))}
         </div>
 
+        <button
+          type="button"
+          onClick={addItem}
+          className="inline-flex items-center gap-1 text-sm text-slate-600 hover:text-brand-red transition-colors mb-3"
+        >
+          <Plus size={15} />
+          Agregar línea
+        </button>
+
         <div className="flex items-center justify-end gap-2 border-t border-slate-100 pt-3 mb-3">
           <label className="text-sm text-slate-600">
             Total del pedido
@@ -530,20 +621,22 @@ function Orders() {
 
         <div className="flex gap-3">
           <button
-            type="button"
-            onClick={addItem}
-            className="inline-flex items-center gap-1 text-sm text-slate-600 hover:text-brand-red transition-colors"
-          >
-            <Plus size={15} />
-            Agregar línea
-          </button>
-          <button
             type="submit"
             className="inline-flex items-center gap-1.5 bg-brand-red text-white rounded px-4 py-1.5 hover:bg-brand-red-dark transition-all active:scale-95"
           >
-            <ClipboardCheck size={15} />
-            Registrar pedido
+            {editingId ? <Save size={15} /> : <ClipboardCheck size={15} />}
+            {editingId ? 'Guardar cambios' : 'Registrar pedido'}
           </button>
+          {editingId && (
+            <button
+              type="button"
+              onClick={cancelEdit}
+              className="inline-flex items-center gap-1 text-sm text-slate-500 hover:text-slate-800 transition-colors"
+            >
+              <X size={15} />
+              Cancelar
+            </button>
+          )}
         </div>
       </form>
 
@@ -553,6 +646,7 @@ function Orders() {
           <thead className="bg-slate-50 text-slate-500 text-left">
             <tr>
               <th className="px-4 py-2">Remito</th>
+              <th className="px-4 py-2">Fecha</th>
               <th className="px-4 py-2">Cliente</th>
               <th className="px-4 py-2">Descuento</th>
               <th className="px-4 py-2">Envío</th>
@@ -567,6 +661,11 @@ function Orders() {
                 <Fragment key={o.id}>
                   <tr className="border-t border-slate-100 transition-colors hover:bg-slate-50">
                     <td className="px-4 py-2">#{o.orderNumber}</td>
+                    <td className="px-4 py-2">
+                      {o.date
+                        ? new Date(`${o.date}T00:00:00`).toLocaleDateString('es-AR')
+                        : '—'}
+                    </td>
                     <td className="px-4 py-2">{o.client?.name || 'Consumidor final'}</td>
                     <td className="px-4 py-2">
                       ${Number(o.discount).toLocaleString('es-AR')}
@@ -603,11 +702,27 @@ function Orders() {
                       >
                         <Share2 size={16} />
                       </button>
+                      <button
+                        onClick={() => startEdit(o)}
+                        title="Editar"
+                        aria-label="Editar"
+                        className="text-slate-600 hover:text-brand-red transition-colors"
+                      >
+                        <Pencil size={16} />
+                      </button>
+                      <button
+                        onClick={() => handleDelete(o)}
+                        title="Eliminar"
+                        aria-label="Eliminar"
+                        className="text-red-600 hover:text-red-800 transition-colors"
+                      >
+                        <Trash2 size={16} />
+                      </button>
                     </td>
                   </tr>
                   {isExpanded && (
                     <tr className="bg-slate-50 border-t border-slate-100">
-                      <td colSpan={6} className="px-4 py-3">
+                      <td colSpan={7} className="px-4 py-3">
                         <div className="animate-fade-in overflow-x-auto">
                           <table className="w-full text-xs">
                             <thead className="text-slate-500 text-left">
@@ -648,7 +763,7 @@ function Orders() {
             })}
             {list.length === 0 && (
               <tr>
-                <td colSpan={6} className="px-4 py-6 text-center text-slate-400">
+                <td colSpan={7} className="px-4 py-6 text-center text-slate-400">
                   No hay pedidos cargados todavía.
                 </td>
               </tr>

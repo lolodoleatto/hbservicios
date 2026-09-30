@@ -151,6 +151,12 @@ export const orders = {
   get(id) {
     return request(`/orders/${id}`)
   },
+  update(id, dto) {
+    return request(`/orders/${id}`, { method: 'PATCH', body: JSON.stringify(dto) })
+  },
+  remove(id) {
+    return request(`/orders/${id}`, { method: 'DELETE' })
+  },
   async create(dto) {
     try {
       return await request('/orders', { method: 'POST', body: JSON.stringify(dto) })
@@ -202,6 +208,12 @@ export const expenses = {
   create(dto) {
     return request('/expenses', { method: 'POST', body: JSON.stringify(dto) })
   },
+  update(id, dto) {
+    return request(`/expenses/${id}`, { method: 'PATCH', body: JSON.stringify(dto) })
+  },
+  remove(id) {
+    return request(`/expenses/${id}`, { method: 'DELETE' })
+  },
 }
 
 function toQuery(params) {
@@ -226,6 +238,9 @@ export const reports = {
   fireExtinguisherAlerts(daysAhead) {
     return request(`/reports/fire-extinguisher-alerts${toQuery({ daysAhead })}`)
   },
+  purchasesBySupplier(from, to) {
+    return request(`/reports/purchases-by-supplier${toQuery({ from, to })}`)
+  },
 }
 
 export const fireExtinguishers = {
@@ -234,6 +249,12 @@ export const fireExtinguishers = {
   },
   create(dto) {
     return request('/fire-extinguishers', { method: 'POST', body: JSON.stringify(dto) })
+  },
+  update(id, dto) {
+    return request(`/fire-extinguishers/${id}`, { method: 'PATCH', body: JSON.stringify(dto) })
+  },
+  remove(id) {
+    return request(`/fire-extinguishers/${id}`, { method: 'DELETE' })
   },
 }
 

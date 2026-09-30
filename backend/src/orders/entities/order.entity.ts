@@ -52,6 +52,13 @@ export class Order {
   @Column('decimal', { precision: 10, scale: 2 })
   total: string;
 
+  // Fecha "de negocio" del pedido (distinta de createdAt, que es cuándo se
+  // cargó el registro) — permite cargar pedidos de fechas pasadas. Nullable
+  // porque los pedidos ya existentes antes de este cambio no la tienen
+  // todavía (se completan con un UPDATE puntual a partir de createdAt).
+  @Column({ type: 'date', nullable: true })
+  date: string | null;
+
   @OneToMany(() => OrderItem, (item) => item.order, { cascade: true })
   items: OrderItem[];
 

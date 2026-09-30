@@ -52,4 +52,11 @@ export class ReportsController {
       daysAhead ? Number(daysAhead) : undefined,
     );
   }
+
+  @ApiQuery({ name: 'from', required: false, description: 'YYYY-MM-DD' })
+  @ApiQuery({ name: 'to', required: false, description: 'YYYY-MM-DD' })
+  @Get('purchases-by-supplier')
+  purchasesBySupplier(@Query('from') from?: string, @Query('to') to?: string) {
+    return this.reportsService.purchasesBySupplier(from, to);
+  }
 }

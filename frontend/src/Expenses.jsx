@@ -1,5 +1,5 @@
 import { Fragment, useEffect, useState } from 'react'
-import { ChevronDown, Plus, Repeat, X } from 'lucide-react'
+import { ChevronDown, Pencil, Plus, Repeat, Save, Trash2, X } from 'lucide-react'
 import { errorMessage, expenses, products, suppliers } from './api'
 import { firstMissing } from './validation'
 
@@ -32,6 +32,7 @@ function Expenses() {
   const [productList, setProductList] = useState([])
   const [supplierList, setSupplierList] = useState([])
   const [error, setError] = useState('')
+  const [editingId, setEditingId] = useState(null)
   const [form, setForm] = useState(EMPTY_FORM)
   const [amountTouched, setAmountTouched] = useState(false)
   const [isStockEntry, setIsStockEntry] = useState(false)
@@ -78,11 +79,42 @@ function Expenses() {
   }
 
   function resetForm() {
+    setEditingId(null)
     setForm({ ...EMPTY_FORM, date: form.date })
     setAmountTouched(false)
     setIsStockEntry(false)
     setIsExchange(false)
     setItems([{ ...EMPTY_ITEM }])
+  }
+
+  function startEdit(expense) {
+    setError('')
+    setEditingId(expense.id)
+    setForm({
+      description: expense.description || '',
+      amount: expense.amount,
+      category: expense.category || '',
+      date: expense.date,
+      supplierId: expense.supplier?.id ? String(expense.supplier.id) : '',
+    })
+    setAmountTouched(true)
+    const hasItems = (expense.items || []).length > 0
+    setIsStockEntry(hasItems)
+    setIsExchange(Boolean(expense.isExchange))
+    setItems(
+      hasItems
+        ? expense.items.map((it) => ({
+            productId: String(it.product.id),
+            quantity: String(it.quantity),
+            unitPrice: String(it.unitPrice),
+          }))
+        : [{ ...EMPTY_ITEM }],
+    )
+    window.scrollTo({ top: 0, behavior: 'smooth' })
+  }
+
+  function cancelEdit() {
+    resetForm()
   }
 
   async function handleSubmit(e) {
@@ -126,8 +158,31 @@ function Expenses() {
         }))
         payload.isExchange = isExchange
       }
-      await expenses.create(payload)
+      if (editingId) {
+        await expenses.update(editingId, payload)
+      } else {
+        await expenses.create(payload)
+      }
       resetForm()
+      load()
+      products.list().then(setProductList)
+    } catch (err) {
+      setError(errorMessage(err))
+    }
+  }
+
+  async function handleDelete(expense) {
+    if (
+      !window.confirm(
+        `¿Eliminar este gasto? Esto revierte el stock que había movido (y el canje, si aplicaba). No se puede deshacer.`,
+      )
+    ) {
+      return
+    }
+    setError('')
+    try {
+      await expenses.remove(expense.id)
+      if (editingId === expense.id) resetForm()
       load()
       products.list().then(setProductList)
     } catch (err) {
@@ -158,6 +213,12 @@ function Expenses() {
       )}
 
       <form onSubmit={handleSubmit} noValidate className="bg-white shadow-sm rounded-lg p-4 mb-6">
+        {editingId && (
+          <p className="flex items-center gap-1.5 text-sm text-amber-700 bg-amber-50 rounded px-3 py-1.5 mb-3">
+            <Pencil size={13} />
+            Editando el gasto — al guardar se recalcula el stock según los cambios.
+          </p>
+        )}
         <div className="flex flex-wrap gap-3 items-end mb-3">
           <div>
             <label className="block text-xs text-slate-500 mb-1">Categoría</label>
@@ -350,13 +411,25 @@ function Expenses() {
           )}
         </div>
 
-        <button
-          type="submit"
-          className="inline-flex items-center gap-1.5 bg-brand-red text-white rounded px-4 py-1.5 hover:bg-brand-red-dark transition-all active:scale-95"
-        >
-          <Plus size={15} />
-          Registrar gasto
-        </button>
+        <div className="flex gap-3">
+          <button
+            type="submit"
+            className="inline-flex items-center gap-1.5 bg-brand-red text-white rounded px-4 py-1.5 hover:bg-brand-red-dark transition-all active:scale-95"
+          >
+            {editingId ? <Save size={15} /> : <Plus size={15} />}
+            {editingId ? 'Guardar cambios' : 'Registrar gasto'}
+          </button>
+          {editingId && (
+            <button
+              type="button"
+              onClick={cancelEdit}
+              className="inline-flex items-center gap-1 text-sm text-slate-500 hover:text-slate-800 transition-colors"
+            >
+              <X size={15} />
+              Cancelar
+            </button>
+          )}
+        </div>
       </form>
 
       <div className="bg-white shadow-sm rounded-lg overflow-hidden">
@@ -370,6 +443,7 @@ function Expenses() {
               <th className="px-4 py-2">Proveedor</th>
               <th className="px-4 py-2">Ingreso de stock</th>
               <th className="px-4 py-2">Monto</th>
+              <th className="px-4 py-2"></th>
             </tr>
           </thead>
           <tbody>
@@ -409,10 +483,28 @@ function Expenses() {
                       )}
                     </td>
                     <td className="px-4 py-2">${Number(exp.amount).toLocaleString('es-AR')}</td>
+                    <td className="px-4 py-2 text-right space-x-3 whitespace-nowrap">
+                      <button
+                        onClick={() => startEdit(exp)}
+                        title="Editar"
+                        aria-label="Editar"
+                        className="text-slate-600 hover:text-brand-red transition-colors"
+                      >
+                        <Pencil size={16} />
+                      </button>
+                      <button
+                        onClick={() => handleDelete(exp)}
+                        title="Eliminar"
+                        aria-label="Eliminar"
+                        className="text-red-600 hover:text-red-800 transition-colors"
+                      >
+                        <Trash2 size={16} />
+                      </button>
+                    </td>
                   </tr>
                   {isExpanded && expItems.length > 1 && (
                     <tr className="bg-slate-50 border-t border-slate-100">
-                      <td colSpan={6} className="px-4 py-3">
+                      <td colSpan={7} className="px-4 py-3">
                         <div className="animate-fade-in overflow-x-auto">
                           <table className="w-full text-xs">
                             <thead className="text-slate-500 text-left">
@@ -447,7 +539,7 @@ function Expenses() {
             })}
             {list.length === 0 && (
               <tr>
-                <td colSpan={6} className="px-4 py-6 text-center text-slate-400">
+                <td colSpan={7} className="px-4 py-6 text-center text-slate-400">
                   No hay gastos cargados todavía.
                 </td>
               </tr>

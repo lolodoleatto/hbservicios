@@ -4,6 +4,8 @@ import { Repository } from 'typeorm';
 import { Expense } from './entities/expense.entity';
 import { ExpenseItem } from './entities/expense-item.entity';
 import { CreateExpenseDto } from './dto/create-expense.dto';
+import { UpdateExpenseDto } from './dto/update-expense.dto';
+import { CreateExpenseItemDto } from './dto/create-expense-item.dto';
 import { ProductsService } from '../products/products.service';
 import { Product, ProductType } from '../products/entities/product.entity';
 import { SuppliersService } from '../suppliers/suppliers.service';
@@ -31,25 +33,7 @@ export class ExpensesService {
       supplier = await this.suppliersService.findOne(dto.supplierId);
     }
 
-    if (dto.isExchange) {
-      if (products.length === 0) {
-        throw new BadRequestException(
-          'Un canje con el proveedor necesita al menos un producto (las garrafas llenas que se reciben)',
-        );
-      }
-      products.forEach((product, i) => {
-        if (product.type !== ProductType.GAS_CYLINDER_FULL || !product.linkedEmptyProduct) {
-          throw new BadRequestException(
-            `"${product.name}" no tiene un envase vacío vinculado, no se puede hacer el canje`,
-          );
-        }
-        if (product.linkedEmptyProduct.stock < itemDtos[i].quantity) {
-          throw new BadRequestException(
-            `Stock insuficiente de "${product.linkedEmptyProduct.name}" para el canje (disponible: ${product.linkedEmptyProduct.stock})`,
-          );
-        }
-      });
-    }
+    this.validateExchange(dto, itemDtos, products);
 
     const expense = this.expensesRepository.create({
       description: dto.description ?? null,
@@ -58,42 +42,58 @@ export class ExpensesService {
       date: dto.date,
       supplier,
       isExchange: Boolean(dto.isExchange),
-      items: itemDtos.map((item, i) =>
-        this.expenseItemsRepository.create({
-          product: { id: products[i].id } as Product,
-          quantity: item.quantity,
-          unitPrice: item.unitPrice.toFixed(2),
-          subtotal: (item.unitPrice * item.quantity).toFixed(2),
-        }),
-      ),
+      items: this.buildExpenseItems(itemDtos, products),
     });
     const saved = await this.expensesRepository.save(expense);
 
     // El gasto ya quedó persistido; recién ahora se mueve el stock, para no
     // dejar un gasto a mitad de camino si algo falla antes (misma lógica
     // que en pedidos: ver avance-fase2.md sección 3.3).
-    for (let i = 0; i < itemDtos.length; i++) {
-      const product = products[i];
-      await this.productsService.adjustStock(
-        product.id,
-        {
-          delta: itemDtos[i].quantity,
-          reason: dto.isExchange
-            ? `Canje con proveedor - gasto #${saved.id}`
-            : `Compra - gasto #${saved.id}`,
-        },
-        { allowPurchase: true },
-      );
-
-      if (dto.isExchange) {
-        await this.productsService.adjustStock(product.linkedEmptyProduct!.id, {
-          delta: -itemDtos[i].quantity,
-          reason: `Canje con proveedor - gasto #${saved.id}`,
-        });
-      }
-    }
+    await this.applyStockEffects(saved.id, itemDtos, products, Boolean(dto.isExchange));
 
     return this.findOne(saved.id);
+  }
+
+  async update(id: number, dto: UpdateExpenseDto): Promise<Expense> {
+    const existing = await this.findOne(id);
+    const itemDtos = dto.items ?? [];
+    const products = await Promise.all(
+      itemDtos.map((item) => this.productsService.findOne(item.productId)),
+    );
+
+    let supplier: Supplier | null = null;
+    if (dto.supplierId) {
+      supplier = await this.suppliersService.findOne(dto.supplierId);
+    }
+
+    // Se valida el canje como si el gasto viejo ya se hubiera revertido,
+    // sin tocar nada todavía — así una edición que no cambia lo esencial
+    // no queda bloqueada por su propio stock ya descontado.
+    const reversal = this.buildReversalDeltas(existing);
+    this.validateExchange(dto, itemDtos, products, reversal);
+
+    await this.reverseStockEffects(existing);
+    await this.expenseItemsRepository.delete({ expense: { id: existing.id } });
+
+    existing.description = dto.description ?? null;
+    existing.amount = dto.amount.toFixed(2);
+    existing.category = dto.category;
+    existing.date = dto.date;
+    existing.supplier = supplier;
+    existing.isExchange = Boolean(dto.isExchange);
+    existing.items = this.buildExpenseItems(itemDtos, products);
+    await this.expensesRepository.save(existing);
+
+    await this.applyStockEffects(existing.id, itemDtos, products, Boolean(dto.isExchange));
+
+    return this.findOne(id);
+  }
+
+  async remove(id: number): Promise<{ deleted: true }> {
+    const expense = await this.findOne(id);
+    await this.reverseStockEffects(expense);
+    await this.expensesRepository.delete(id);
+    return { deleted: true };
   }
 
   findAll(productId?: number): Promise<Expense[]> {
@@ -107,11 +107,112 @@ export class ExpensesService {
   async findOne(id: number): Promise<Expense> {
     const expense = await this.expensesRepository.findOne({
       where: { id },
-      relations: { items: { product: true }, supplier: true },
+      relations: { items: { product: { linkedEmptyProduct: true } }, supplier: true },
     });
     if (!expense) {
       throw new NotFoundException(`Gasto ${id} no encontrado`);
     }
     return expense;
+  }
+
+  private validateExchange(
+    dto: CreateExpenseDto,
+    itemDtos: CreateExpenseItemDto[],
+    products: Product[],
+    reversal?: Map<number, number>,
+  ): void {
+    if (!dto.isExchange) return;
+    if (products.length === 0) {
+      throw new BadRequestException(
+        'Un canje con el proveedor necesita al menos un producto (las garrafas llenas que se reciben)',
+      );
+    }
+    products.forEach((product, i) => {
+      if (product.type !== ProductType.GAS_CYLINDER_FULL || !product.linkedEmptyProduct) {
+        throw new BadRequestException(
+          `"${product.name}" no tiene un envase vacío vinculado, no se puede hacer el canje`,
+        );
+      }
+      const emptyProduct = product.linkedEmptyProduct;
+      const effectiveStock = emptyProduct.stock + (reversal?.get(emptyProduct.id) ?? 0);
+      if (effectiveStock < itemDtos[i].quantity) {
+        throw new BadRequestException(
+          `Stock insuficiente de "${emptyProduct.name}" para el canje (disponible: ${effectiveStock})`,
+        );
+      }
+    });
+  }
+
+  private buildExpenseItems(itemDtos: CreateExpenseItemDto[], products: Product[]): ExpenseItem[] {
+    return itemDtos.map((item, i) =>
+      this.expenseItemsRepository.create({
+        product: { id: products[i].id } as Product,
+        quantity: item.quantity,
+        unitPrice: item.unitPrice.toFixed(2),
+        subtotal: (item.unitPrice * item.quantity).toFixed(2),
+      }),
+    );
+  }
+
+  private async applyStockEffects(
+    expenseId: number,
+    itemDtos: CreateExpenseItemDto[],
+    products: Product[],
+    isExchange: boolean,
+  ): Promise<void> {
+    for (let i = 0; i < itemDtos.length; i++) {
+      const product = products[i];
+      await this.productsService.adjustStock(
+        product.id,
+        {
+          delta: itemDtos[i].quantity,
+          reason: isExchange
+            ? `Canje con proveedor - gasto #${expenseId}`
+            : `Compra - gasto #${expenseId}`,
+        },
+        { allowPurchase: true },
+      );
+
+      if (isExchange) {
+        await this.productsService.adjustStock(product.linkedEmptyProduct!.id, {
+          delta: -itemDtos[i].quantity,
+          reason: `Canje con proveedor - gasto #${expenseId}`,
+        });
+      }
+    }
+  }
+
+  // Deshace exactamente el efecto de stock que dejó `applyStockEffects`.
+  private async reverseStockEffects(expense: Expense): Promise<void> {
+    for (const item of expense.items) {
+      const product = item.product;
+      await this.productsService.adjustStock(product.id, {
+        delta: -item.quantity,
+        reason: `Reversión gasto #${expense.id}`,
+      });
+
+      if (expense.isExchange && product.linkedEmptyProduct) {
+        await this.productsService.adjustStock(product.linkedEmptyProduct.id, {
+          delta: item.quantity,
+          reason: `Reversión canje gasto #${expense.id}`,
+        });
+      }
+    }
+  }
+
+  // Cuánto cambiaría el stock de cada producto si `reverseStockEffects` se
+  // aplicara sobre este gasto, sin tocar nada todavía.
+  private buildReversalDeltas(expense: Expense): Map<number, number> {
+    const deltas = new Map<number, number>();
+    const add = (productId: number, amount: number) => {
+      deltas.set(productId, (deltas.get(productId) ?? 0) + amount);
+    };
+    for (const item of expense.items) {
+      add(item.product.id, -item.quantity);
+      if (expense.isExchange && item.product.linkedEmptyProduct) {
+        add(item.product.linkedEmptyProduct.id, item.quantity);
+      }
+    }
+    return deltas;
   }
 }

@@ -1,6 +1,7 @@
 import { Type } from 'class-transformer';
 import {
   ArrayMinSize,
+  IsDateString,
   IsInt,
   IsNumber,
   IsOptional,
@@ -20,6 +21,14 @@ export class CreateOrderDto {
   @IsOptional()
   @IsInt()
   clientId?: number;
+
+  @ApiPropertyOptional({
+    example: '2026-08-15',
+    description: 'Fecha del pedido. Vacío = hoy. Sirve para cargar pedidos de fechas pasadas.',
+  })
+  @IsOptional()
+  @IsDateString()
+  date?: string;
 
   @ApiPropertyOptional({ example: 500, default: 0 })
   @IsOptional()
