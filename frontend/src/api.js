@@ -145,8 +145,10 @@ export const clients = {
 }
 
 export const orders = {
-  list() {
-    return request('/orders')
+  // params: { from, to, search, page, pageSize } — con page, la respuesta
+  // es { data, total, page, pageSize }.
+  list(params = {}) {
+    return request(`/orders${toQuery(params)}`)
   },
   get(id) {
     return request(`/orders/${id}`)
@@ -202,8 +204,9 @@ export const orders = {
 }
 
 export const expenses = {
-  list(productId) {
-    return request(`/expenses${toQuery({ productId })}`)
+  // Mismo esquema de params que orders.list.
+  list(productId, params = {}) {
+    return request(`/expenses${toQuery({ productId, ...params })}`)
   },
   create(dto) {
     return request('/expenses', { method: 'POST', body: JSON.stringify(dto) })
@@ -229,8 +232,8 @@ export const reports = {
   sales(from, to) {
     return request(`/reports/sales${toQuery({ from, to })}`)
   },
-  stockMovements(productId, from, to) {
-    return request(`/reports/stock-movements${toQuery({ productId, from, to })}`)
+  stockMovements(productId, from, to, page, pageSize) {
+    return request(`/reports/stock-movements${toQuery({ productId, from, to, page, pageSize })}`)
   },
   balance(from, to) {
     return request(`/reports/balance${toQuery({ from, to })}`)

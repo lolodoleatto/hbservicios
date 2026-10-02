@@ -17,6 +17,8 @@ import {
 } from 'lucide-react'
 import { clients, errorMessage, orders, products } from './api'
 import { firstMissing } from './validation'
+import { ListFilters, PAGE_SIZE, Pagination } from './ListControls'
+import SearchSelect from './SearchSelect'
 
 const EMPTY_ITEM = { productId: '', quantity: '1', withExchange: true, expiresAt: '' }
 const EMPTY_LOAN = { productId: '', quantity: '1', notes: '' }
@@ -33,6 +35,10 @@ function plusOneYearIso(date = new Date()) {
 
 function Orders() {
   const [list, setList] = useState([])
+  const [filters, setFilters] = useState({ from: '', to: '', search: '' })
+  const [page, setPage] = useState(1)
+  const [totalCount, setTotalCount] = useState(0)
+  const [reloadKey, setReloadKey] = useState(0)
   const [clientList, setClientList] = useState([])
   const [productList, setProductList] = useState([])
   const [error, setError] = useState('')
@@ -58,7 +64,14 @@ function Orders() {
     setError('')
     setOfflineNotice('')
     try {
-      setList(await orders.list())
+      const result = await orders.list({ ...filters, page, pageSize: PAGE_SIZE })
+      // Si se borró el último pedido de la página, volver a la anterior.
+      if (result.data.length === 0 && page > 1) {
+        setPage(page - 1)
+        return
+      }
+      setList(result.data)
+      setTotalCount(result.total)
     } catch (err) {
       if (err instanceof TypeError) {
         setOfflineNotice(
@@ -85,7 +98,10 @@ function Orders() {
         )
       }
       await loadPending()
-      load()
+      // handleSync también corre desde el listener 'online' registrado al
+      // montar, con los filtros de ese momento: forzamos la recarga vía
+      // estado para que use los filtros/página actuales.
+      setReloadKey((k) => k + 1)
     } finally {
       setSyncing(false)
     }
@@ -93,6 +109,14 @@ function Orders() {
 
   useEffect(() => {
     load()
+  }, [filters, page, reloadKey])
+
+  function changeFilters(next) {
+    setFilters(next)
+    setPage(1)
+  }
+
+  useEffect(() => {
     loadPending()
     clients.list().then(setClientList).catch((err) => setError(errorMessage(err)))
     products.list().then(setProductList).catch((err) => setError(errorMessage(err)))
@@ -127,6 +151,17 @@ function Orders() {
 
   function updateItem(index, field, value) {
     setItems(items.map((it, i) => (i === index ? { ...it, [field]: value } : it)))
+  }
+
+  // Al destildar "Con canje" en un pedido nuevo con cliente, se precarga el
+  // préstamo del envase con esa garrafa y esa cantidad (se puede destildar
+  // si en realidad el cliente compró el envase).
+  function toggleExchange(index, checked) {
+    updateItem(index, 'withExchange', checked)
+    if (!checked && clientId && !editingId && !includeLoan) {
+      setIncludeLoan(true)
+      setLoan({ ...EMPTY_LOAN, productId: items[index].productId, quantity: items[index].quantity })
+    }
   }
 
   function updateItemProduct(index, productId) {
@@ -204,7 +239,7 @@ function Orders() {
         return
       }
     }
-    if (includeLoan) {
+    if (includeLoan && canLoan) {
       const missing = firstMissing([
         ['Producto prestado', loan.productId],
         ['Cantidad del préstamo', loan.quantity],
@@ -235,7 +270,7 @@ function Orders() {
         products.list().then(setProductList)
         return
       }
-      if (includeLoan && clientId && loan.productId) {
+      if (includeLoan && canLoan && loan.productId) {
         payload.loans = [
           {
             productId: Number(loan.productId),
@@ -323,6 +358,20 @@ function Orders() {
       if (err.name !== 'AbortError') setError(errorMessage(err))
     }
   }
+
+  // Garrafas llenas vendidas SIN canje en este pedido, con la cantidad total
+  // por producto: son las únicas que se pueden prestar (con canje el cliente
+  // ya dejó su envase, no debe nada). Misma regla que valida el backend.
+  const noExchangeQty = new Map()
+  items.forEach((it) => {
+    const product = productList.find((p) => String(p.id) === String(it.productId))
+    if (product?.type !== 'gas_cylinder_full') return
+    if (product.linkedEmptyProduct && it.withExchange !== false) return
+    noExchangeQty.set(product.id, (noExchangeQty.get(product.id) || 0) + (Number(it.quantity) || 0))
+  })
+  const loanableProducts = productList.filter((p) => noExchangeQty.has(p.id))
+  const maxLoanQty = noExchangeQty.get(Number(loan.productId)) || 0
+  const canLoan = Boolean(clientId) && !editingId && loanableProducts.length > 0
 
   return (
     <div className="max-w-4xl mx-auto">
@@ -422,18 +471,13 @@ function Orders() {
         <div className="flex flex-wrap gap-3 items-end mb-4">
           <div>
             <label className="block text-xs text-slate-500 mb-1">Cliente</label>
-            <select
+            <SearchSelect
               value={clientId}
-              onChange={(e) => setClientId(e.target.value)}
-              className="border border-slate-300 rounded px-2 py-1 transition-shadow focus:outline-none focus:ring-2 focus:ring-brand-red/30 focus:border-brand-red"
-            >
-              <option value="">Consumidor final</option>
-              {clientList.map((c) => (
-                <option key={c.id} value={c.id}>
-                  {c.name}
-                </option>
-              ))}
-            </select>
+              onChange={setClientId}
+              options={clientList.map((c) => ({ value: c.id, label: c.name }))}
+              emptyLabel="Consumidor final"
+              placeholder="Escribí para buscar un cliente..."
+            />
           </div>
           <div>
             <label className="block text-xs text-slate-500 mb-1">Fecha</label>
@@ -516,7 +560,7 @@ function Orders() {
                   <input
                     type="checkbox"
                     checked={item.withExchange !== false}
-                    onChange={(e) => updateItem(i, 'withExchange', e.target.checked)}
+                    onChange={(e) => toggleExchange(i, e.target.checked)}
                   />
                   <Repeat size={14} />
                   Con canje
@@ -567,18 +611,28 @@ function Orders() {
           <label className="flex items-center gap-2 text-sm text-slate-700 mb-2">
             <input
               type="checkbox"
-              checked={includeLoan}
-              onChange={(e) => setIncludeLoan(e.target.checked)}
-              disabled={!clientId}
+              checked={includeLoan && canLoan}
+              onChange={(e) => {
+                setIncludeLoan(e.target.checked)
+                if (e.target.checked && !loanableProducts.some((p) => String(p.id) === loan.productId)) {
+                  const first = loanableProducts[0]
+                  setLoan({ ...EMPTY_LOAN, productId: String(first.id), quantity: String(noExchangeQty.get(first.id)) })
+                }
+              }}
+              disabled={!canLoan}
             />
             Este pedido incluye préstamo de un envase
           </label>
-          {!clientId && includeLoan === false && (
+          {!canLoan && (
             <p className="text-xs text-slate-400 mb-2">
-              Seleccioná un cliente arriba para poder registrar un préstamo.
+              {editingId
+                ? 'Los préstamos no se editan desde acá: se manejan en Clientes.'
+                : !clientId
+                  ? 'Seleccioná un cliente arriba para poder registrar un préstamo.'
+                  : 'Para prestar el envase, destildá "Con canje" en la garrafa que se lleva sin dejar su vacío.'}
             </p>
           )}
-          {includeLoan && (
+          {includeLoan && canLoan && (
             <div className="flex flex-wrap gap-3 items-end animate-fade-in">
               <div>
                 <label className="block text-xs text-slate-500 mb-1">Producto prestado</label>
@@ -589,7 +643,7 @@ function Orders() {
                   className="border border-slate-300 rounded px-2 py-1 transition-shadow focus:outline-none focus:ring-2 focus:ring-brand-red/30 focus:border-brand-red"
                 >
                   <option value="">Seleccionar...</option>
-                  {productList.map((p) => (
+                  {loanableProducts.map((p) => (
                     <option key={p.id} value={p.id}>
                       {p.name}
                     </option>
@@ -601,6 +655,7 @@ function Orders() {
                 <input
                   type="number"
                   min="1"
+                  max={maxLoanQty || undefined}
                   value={loan.quantity}
                   onChange={(e) => setLoan({ ...loan, quantity: e.target.value })}
                   required
@@ -641,6 +696,11 @@ function Orders() {
       </form>
 
       <div className="bg-white shadow-sm rounded-lg overflow-hidden">
+        <ListFilters
+          filters={filters}
+          onChange={changeFilters}
+          searchPlaceholder="Cliente o número de pedido"
+        />
         <div className="overflow-x-auto">
         <table className="w-full text-sm">
           <thead className="bg-slate-50 text-slate-500 text-left">
@@ -764,13 +824,16 @@ function Orders() {
             {list.length === 0 && (
               <tr>
                 <td colSpan={7} className="px-4 py-6 text-center text-slate-400">
-                  No hay pedidos cargados todavía.
+                  {filters.from || filters.to || filters.search
+                    ? 'No hay pedidos que coincidan con el filtro.'
+                    : 'No hay pedidos cargados todavía.'}
                 </td>
               </tr>
             )}
           </tbody>
         </table>
         </div>
+        <Pagination page={page} total={totalCount} onChange={setPage} />
       </div>
     </div>
   )

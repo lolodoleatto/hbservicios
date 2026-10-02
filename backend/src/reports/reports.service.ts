@@ -1,11 +1,12 @@
 import { Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
+import { Repository } from 'typeorm';
 import {
-  Between,
-  LessThanOrEqual,
-  MoreThanOrEqual,
-  Repository,
-} from 'typeorm';
+  dateRangeWhere,
+  dateTimeRangeWhere,
+  ListQuery,
+  pageOptions,
+} from '../common/list-query';
 import { Order } from '../orders/entities/order.entity';
 import { OrderItem } from '../orders/entities/order-item.entity';
 import { StockMovement } from '../products/entities/stock-movement.entity';
@@ -19,22 +20,6 @@ interface SupplierPurchaseEntry {
   totalAmount: number;
   purchaseCount: number;
   purchases: { id: number; date: string; amount: string; description: string | null }[];
-}
-
-function dateTimeRangeWhere(from?: string, to?: string) {
-  if (from && to) {
-    return Between(new Date(`${from}T00:00:00`), new Date(`${to}T23:59:59.999`));
-  }
-  if (from) return MoreThanOrEqual(new Date(`${from}T00:00:00`));
-  if (to) return LessThanOrEqual(new Date(`${to}T23:59:59.999`));
-  return undefined;
-}
-
-function dateRangeWhere(from?: string, to?: string) {
-  if (from && to) return Between(from, to);
-  if (from) return MoreThanOrEqual(from);
-  if (to) return LessThanOrEqual(to);
-  return undefined;
 }
 
 interface FireExtinguisherAlertEntry {
@@ -104,16 +89,25 @@ export class ReportsService {
     };
   }
 
-  stockMovements(productId?: number, from?: string, to?: string) {
-    const createdAt = dateTimeRangeWhere(from, to);
-    return this.stockMovementsRepository.find({
+  async stockMovements(productId: number | undefined, query: ListQuery) {
+    const createdAt = dateTimeRangeWhere(query.from, query.to);
+    const options = {
       where: {
         ...(createdAt ? { createdAt } : {}),
         ...(productId ? { product: { id: productId } } : {}),
       },
       relations: { product: true },
-      order: { createdAt: 'DESC' },
+      order: { createdAt: 'DESC' as const, id: 'DESC' as const },
+    };
+    const paging = pageOptions(query);
+    if (!paging) return this.stockMovementsRepository.find(options);
+
+    const [data, total] = await this.stockMovementsRepository.findAndCount({
+      ...options,
+      skip: paging.skip,
+      take: paging.take,
     });
+    return { data, total, page: paging.page, pageSize: paging.pageSize };
   }
 
   async balance(from?: string, to?: string) {

@@ -33,9 +33,24 @@ export class ExpensesController {
     required: false,
     description: 'Filtra el historial de compras de un producto puntual.',
   })
+  @ApiQuery({ name: 'from', required: false, description: 'YYYY-MM-DD' })
+  @ApiQuery({ name: 'to', required: false, description: 'YYYY-MM-DD' })
+  @ApiQuery({ name: 'search', required: false, description: 'Descripción, categoría o proveedor' })
+  @ApiQuery({ name: 'page', required: false, description: 'Si viene, la respuesta es { data, total, page, pageSize }' })
+  @ApiQuery({ name: 'pageSize', required: false })
   @Get()
-  findAll(@Query('productId') productId?: string) {
-    return this.expensesService.findAll(productId ? Number(productId) : undefined);
+  findAll(
+    @Query('productId') productId?: string,
+    @Query('from') from?: string,
+    @Query('to') to?: string,
+    @Query('search') search?: string,
+    @Query('page') page?: string,
+    @Query('pageSize') pageSize?: string,
+  ) {
+    return this.expensesService.findAll(
+      productId ? Number(productId) : undefined,
+      { from, to, search, page, pageSize },
+    );
   }
 
   @Get(':id')

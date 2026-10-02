@@ -1,6 +1,12 @@
 import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository } from 'typeorm';
+import { FindOptionsWhere, Like, Repository } from 'typeorm';
+import {
+  dateRangeWhere,
+  ListQuery,
+  pageOptions,
+  Paginated,
+} from '../common/list-query';
 import { Expense } from './entities/expense.entity';
 import { ExpenseItem } from './entities/expense-item.entity';
 import { CreateExpenseDto } from './dto/create-expense.dto';
@@ -96,12 +102,40 @@ export class ExpensesService {
     return { deleted: true };
   }
 
-  findAll(productId?: number): Promise<Expense[]> {
-    return this.expensesRepository.find({
-      where: productId ? { items: { product: { id: productId } } } : {},
+  // `search` busca en descripción, categoría o nombre del proveedor.
+  async findAll(
+    productId?: number,
+    query: ListQuery = {},
+  ): Promise<Expense[] | Paginated<Expense>> {
+    const date = dateRangeWhere(query.from, query.to);
+    const base: FindOptionsWhere<Expense> = {
+      ...(productId ? { items: { product: { id: productId } } } : {}),
+      ...(date ? { date } : {}),
+    };
+    const search = query.search?.trim();
+    const like = Like(`%${search}%`);
+    const where: FindOptionsWhere<Expense>[] = search
+      ? [
+          { ...base, description: like },
+          { ...base, category: like },
+          { ...base, supplier: { name: like } },
+        ]
+      : [base];
+
+    const options = {
+      where,
       relations: { items: { product: true }, supplier: true },
-      order: { date: 'DESC', createdAt: 'DESC' },
+      order: { date: 'DESC' as const, createdAt: 'DESC' as const, id: 'DESC' as const },
+    };
+    const paging = pageOptions(query);
+    if (!paging) return this.expensesRepository.find(options);
+
+    const [data, total] = await this.expensesRepository.findAndCount({
+      ...options,
+      skip: paging.skip,
+      take: paging.take,
     });
+    return { data, total, page: paging.page, pageSize: paging.pageSize };
   }
 
   async findOne(id: number): Promise<Expense> {

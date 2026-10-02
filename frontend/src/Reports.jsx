@@ -1,4 +1,4 @@
-import { Fragment, useEffect, useState } from 'react'
+import { Fragment, useEffect, useRef, useState } from 'react'
 import {
   AlertTriangle,
   ArrowUpDown,
@@ -15,6 +15,7 @@ import {
   X,
 } from 'lucide-react'
 import { errorMessage, products, reports } from './api'
+import { PAGE_SIZE, Pagination } from './ListControls'
 
 function money(value) {
   return `$${Number(value).toLocaleString('es-AR')}`
@@ -111,6 +112,8 @@ function Reports() {
   const [productList, setProductList] = useState([])
   const [movementProductId, setMovementProductId] = useState('')
   const [movements, setMovements] = useState([])
+  const [movementPage, setMovementPage] = useState(1)
+  const [movementTotal, setMovementTotal] = useState(0)
 
   const [daysAhead, setDaysAhead] = useState('30')
   const [alerts, setAlerts] = useState([])
@@ -132,9 +135,23 @@ function Reports() {
     }
   }
 
+  // Cambiar período/producto dispara dos cargas seguidas (la de la página
+  // vieja y la de la página 1): sólo se aplica la respuesta de la última.
+  const movementsRequest = useRef(0)
+
   async function loadMovements() {
+    const requestId = ++movementsRequest.current
     try {
-      setMovements(await reports.stockMovements(movementProductId, from, to))
+      const result = await reports.stockMovements(
+        movementProductId,
+        from,
+        to,
+        movementPage,
+        PAGE_SIZE,
+      )
+      if (requestId !== movementsRequest.current) return
+      setMovements(result.data)
+      setMovementTotal(result.total)
     } catch (err) {
       setError(errorMessage(err))
     }
@@ -158,14 +175,18 @@ function Reports() {
 
   useEffect(() => {
     loadSalesAndBalance()
-    loadMovements()
     loadPurchasesBySupplier()
     products.list().then(setProductList).catch((err) => setError(errorMessage(err)))
   }, [from, to])
 
+  // Al cambiar el período o el producto se vuelve a la página 1.
+  useEffect(() => {
+    setMovementPage(1)
+  }, [from, to, movementProductId])
+
   useEffect(() => {
     loadMovements()
-  }, [movementProductId])
+  }, [from, to, movementProductId, movementPage])
 
   useEffect(() => {
     loadAlerts()
@@ -452,6 +473,7 @@ function Reports() {
           </tbody>
         </table>
         </div>
+        <Pagination page={movementPage} total={movementTotal} onChange={setMovementPage} />
       </div>
 
       <div className="flex items-center gap-3 mb-3">

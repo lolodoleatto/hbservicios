@@ -2,6 +2,7 @@ import { Fragment, useEffect, useState } from 'react'
 import { ChevronDown, Pencil, Plus, Repeat, Save, Trash2, X } from 'lucide-react'
 import { errorMessage, expenses, products, suppliers } from './api'
 import { firstMissing } from './validation'
+import { ListFilters, PAGE_SIZE, Pagination } from './ListControls'
 
 function todayIso() {
   return new Date().toISOString().slice(0, 10)
@@ -29,6 +30,9 @@ const CATEGORY_OPTIONS = [
 
 function Expenses() {
   const [list, setList] = useState([])
+  const [filters, setFilters] = useState({ from: '', to: '', search: '' })
+  const [page, setPage] = useState(1)
+  const [totalCount, setTotalCount] = useState(0)
   const [productList, setProductList] = useState([])
   const [supplierList, setSupplierList] = useState([])
   const [error, setError] = useState('')
@@ -43,7 +47,14 @@ function Expenses() {
   async function load() {
     setError('')
     try {
-      setList(await expenses.list())
+      const result = await expenses.list(undefined, { ...filters, page, pageSize: PAGE_SIZE })
+      // Si se borró el último gasto de la página, volver a la anterior.
+      if (result.data.length === 0 && page > 1) {
+        setPage(page - 1)
+        return
+      }
+      setList(result.data)
+      setTotalCount(result.total)
     } catch (err) {
       setError(errorMessage(err))
     }
@@ -51,6 +62,14 @@ function Expenses() {
 
   useEffect(() => {
     load()
+  }, [filters, page])
+
+  function changeFilters(next) {
+    setFilters(next)
+    setPage(1)
+  }
+
+  useEffect(() => {
     products.list().then(setProductList).catch((err) => setError(errorMessage(err)))
     suppliers.list().then(setSupplierList).catch((err) => setError(errorMessage(err)))
   }, [])
@@ -433,6 +452,11 @@ function Expenses() {
       </form>
 
       <div className="bg-white shadow-sm rounded-lg overflow-hidden">
+        <ListFilters
+          filters={filters}
+          onChange={changeFilters}
+          searchPlaceholder="Descripción, categoría o proveedor"
+        />
         <div className="overflow-x-auto">
         <table className="w-full text-sm">
           <thead className="bg-slate-50 text-slate-500 text-left">
@@ -540,13 +564,16 @@ function Expenses() {
             {list.length === 0 && (
               <tr>
                 <td colSpan={7} className="px-4 py-6 text-center text-slate-400">
-                  No hay gastos cargados todavía.
+                  {filters.from || filters.to || filters.search
+                    ? 'No hay gastos que coincidan con el filtro.'
+                    : 'No hay gastos cargados todavía.'}
                 </td>
               </tr>
             )}
           </tbody>
         </table>
         </div>
+        <Pagination page={page} total={totalCount} onChange={setPage} />
       </div>
     </div>
   )

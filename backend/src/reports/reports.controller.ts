@@ -21,16 +21,19 @@ export class ReportsController {
   @ApiQuery({ name: 'productId', required: false })
   @ApiQuery({ name: 'from', required: false, description: 'YYYY-MM-DD' })
   @ApiQuery({ name: 'to', required: false, description: 'YYYY-MM-DD' })
+  @ApiQuery({ name: 'page', required: false, description: 'Si viene, la respuesta es { data, total, page, pageSize }' })
+  @ApiQuery({ name: 'pageSize', required: false })
   @Get('stock-movements')
   stockMovements(
     @Query('productId') productId?: string,
     @Query('from') from?: string,
     @Query('to') to?: string,
+    @Query('page') page?: string,
+    @Query('pageSize') pageSize?: string,
   ) {
     return this.reportsService.stockMovements(
       productId ? Number(productId) : undefined,
-      from,
-      to,
+      { from, to, page, pageSize },
     );
   }
 

@@ -7,10 +7,11 @@ import {
   ParseIntPipe,
   Patch,
   Post,
+  Query,
   Res,
 } from '@nestjs/common';
 import type { Response } from 'express';
-import { ApiBearerAuth, ApiTags } from '@nestjs/swagger';
+import { ApiBearerAuth, ApiQuery, ApiTags } from '@nestjs/swagger';
 import { OrdersService } from './orders.service';
 import { OrdersPdfService } from './orders-pdf.service';
 import { CreateOrderDto } from './dto/create-order.dto';
@@ -33,9 +34,20 @@ export class OrdersController {
     return this.ordersService.create(dto);
   }
 
+  @ApiQuery({ name: 'from', required: false, description: 'YYYY-MM-DD' })
+  @ApiQuery({ name: 'to', required: false, description: 'YYYY-MM-DD' })
+  @ApiQuery({ name: 'search', required: false, description: 'Nombre de cliente o número de pedido' })
+  @ApiQuery({ name: 'page', required: false, description: 'Si viene, la respuesta es { data, total, page, pageSize }' })
+  @ApiQuery({ name: 'pageSize', required: false })
   @Get()
-  findAll() {
-    return this.ordersService.findAll();
+  findAll(
+    @Query('from') from?: string,
+    @Query('to') to?: string,
+    @Query('search') search?: string,
+    @Query('page') page?: string,
+    @Query('pageSize') pageSize?: string,
+  ) {
+    return this.ordersService.findAll({ from, to, search, page, pageSize });
   }
 
   @Get(':id')

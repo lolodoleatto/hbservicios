@@ -121,6 +121,7 @@ function Clients() {
       })
       setLoanForm(EMPTY_LOAN_FORM)
       loadLoans(selectedClientId)
+      products.list().then(setProductList)
     } catch (err) {
       setError(errorMessage(err))
     }
@@ -130,10 +131,15 @@ function Clients() {
     try {
       await clients.returnLoan(selectedClientId, loanId)
       loadLoans(selectedClientId)
+      products.list().then(setProductList)
     } catch (err) {
       setError(errorMessage(err))
     }
   }
+
+  const loanableProducts = productList.filter(
+    (p) => p.type === 'gas_cylinder_full' || p.type === 'gas_cylinder_empty',
+  )
 
   return (
     <div className="max-w-4xl mx-auto">
@@ -321,9 +327,9 @@ function Clients() {
                   className="border border-slate-300 rounded px-2 py-1 transition-shadow focus:outline-none focus:ring-2 focus:ring-brand-red/30 focus:border-brand-red"
                 >
                   <option value="">Seleccionar...</option>
-                  {productList.map((p) => (
+                  {loanableProducts.map((p) => (
                     <option key={p.id} value={p.id}>
-                      {p.name}
+                      {p.name} (stock: {p.stock})
                     </option>
                   ))}
                 </select>
