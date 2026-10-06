@@ -28,6 +28,16 @@ function setToken(token) {
   else localStorage.removeItem('token')
 }
 
+// Los PDF no son JSON: se piden aparte y se devuelven como Blob.
+async function fetchPdf(path) {
+  const token = getToken()
+  const res = await fetch(`${API_URL}${path}`, {
+    headers: token ? { Authorization: `Bearer ${token}` } : {},
+  })
+  if (!res.ok) throw new Error(`Error ${res.status}`)
+  return res.blob()
+}
+
 async function request(path, options = {}) {
   const token = getToken()
   const res = await fetch(`${API_URL}${path}`, {
@@ -171,13 +181,8 @@ export const orders = {
       return { pending: true, localId }
     }
   },
-  async downloadPdf(id) {
-    const token = getToken()
-    const res = await fetch(`${API_URL}/orders/${id}/pdf`, {
-      headers: token ? { Authorization: `Bearer ${token}` } : {},
-    })
-    if (!res.ok) throw new Error(`Error ${res.status}`)
-    return res.blob()
+  downloadPdf(id) {
+    return fetchPdf(`/orders/${id}/pdf`)
   },
   listPending() {
     return db.pendingOrders.toArray()
@@ -258,6 +263,9 @@ export const fireExtinguishers = {
   },
   remove(id) {
     return request(`/fire-extinguishers/${id}`, { method: 'DELETE' })
+  },
+  downloadPdf(id) {
+    return fetchPdf(`/fire-extinguishers/${id}/pdf`)
   },
 }
 

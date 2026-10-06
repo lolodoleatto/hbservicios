@@ -160,21 +160,24 @@ export class ReportsService {
         expiresAt: item.expiresAt as Date,
       }));
 
-    // Fuente 2: recargas cargadas desde el módulo específico.
+    // Fuente 2: recargas cargadas desde el módulo específico — una entrada
+    // por cada línea (tipo de matafuego) de la recarga.
     const direct = await this.fireExtinguishersRepository.find({
-      relations: { client: true, product: true },
+      relations: { client: true, items: { product: true } },
     });
-    const fromDirect: FireExtinguisherAlertEntry[] = direct.map((fe) => ({
-      id: `directo-${fe.id}`,
-      source: 'directo',
-      orderNumber: null,
-      clientId: fe.client.id,
-      clientName: fe.client.name,
-      productId: fe.product.id,
-      productName: fe.product.name,
-      quantity: 1,
-      expiresAt: new Date(`${fe.expiresAt}T00:00:00`),
-    }));
+    const fromDirect: FireExtinguisherAlertEntry[] = direct.flatMap((fe) =>
+      fe.items.map((item) => ({
+        id: `directo-${item.id}`,
+        source: 'directo' as const,
+        orderNumber: null,
+        clientId: fe.client.id,
+        clientName: fe.client.name,
+        productId: item.product.id,
+        productName: item.product.name,
+        quantity: item.quantity,
+        expiresAt: new Date(`${fe.expiresAt}T00:00:00`),
+      })),
+    );
 
     // Un mismo cliente puede tener varias entradas para el mismo matafuego
     // (la venta original + recargas posteriores): nos interesa solo la más

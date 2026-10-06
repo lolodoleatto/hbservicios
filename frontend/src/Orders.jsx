@@ -19,6 +19,7 @@ import { clients, errorMessage, orders, products } from './api'
 import { firstMissing } from './validation'
 import { ListFilters, PAGE_SIZE, Pagination } from './ListControls'
 import SearchSelect from './SearchSelect'
+import { openPdf, sharePdf } from './pdf'
 
 const EMPTY_ITEM = { productId: '', quantity: '1', withExchange: true, expiresAt: '' }
 const EMPTY_LOAN = { productId: '', quantity: '1', notes: '' }
@@ -323,9 +324,7 @@ function Orders() {
   async function handleDownloadPdf(order) {
     setError('')
     try {
-      const blob = await orders.downloadPdf(order.id)
-      const url = URL.createObjectURL(blob)
-      window.open(url, '_blank')
+      openPdf(await orders.downloadPdf(order.id))
     } catch (err) {
       setError(errorMessage(err))
     }
@@ -334,26 +333,10 @@ function Orders() {
   async function handleSharePdf(order) {
     setError('')
     try {
-      const blob = await orders.downloadPdf(order.id)
-      const file = new File([blob], `remito-${order.orderNumber}.pdf`, {
-        type: 'application/pdf',
+      await sharePdf(await orders.downloadPdf(order.id), {
+        filename: `remito-${order.orderNumber}.pdf`,
+        title: `Remito #${order.orderNumber}`,
       })
-
-      if (navigator.canShare && navigator.canShare({ files: [file] })) {
-        await navigator.share({
-          files: [file],
-          title: `Remito #${order.orderNumber}`,
-        })
-      } else {
-        const url = URL.createObjectURL(blob)
-        window.open(url, '_blank')
-        window.open(
-          `https://wa.me/?text=${encodeURIComponent(
-            `Remito #${order.orderNumber} de HB Servicios (adjuntá el PDF que se acaba de abrir/descargar)`,
-          )}`,
-          '_blank',
-        )
-      }
     } catch (err) {
       if (err.name !== 'AbortError') setError(errorMessage(err))
     }

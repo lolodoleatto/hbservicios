@@ -1,38 +1,15 @@
 import { Injectable } from '@nestjs/common';
-import { join } from 'path';
-import PDFDocument from 'pdfkit';
 import { Order } from './entities/order.entity';
-
-const LOGO_PATH = join(__dirname, '..', 'assets', 'hb-logo.png');
+import { startBusinessDocument } from '../common/pdf-layout';
 
 @Injectable()
 export class OrdersPdfService {
   buildRemito(order: Order): PDFKit.PDFDocument {
-    const doc = new PDFDocument({ size: 'A4', margin: 50 });
+    const doc = startBusinessDocument(
+      `Remito interno N° ${order.orderNumber}`,
+      'Este comprobante es un remito interno y no reemplaza a una factura fiscal.',
+    );
 
-    try {
-      doc.image(LOGO_PATH, 50, 45, { width: 42 });
-    } catch {
-      // el logo es solo decorativo: si no está presente, se omite sin romper el PDF
-    }
-    doc.fontSize(18).text('HB Servicios', 102, 50, { align: 'left' });
-    doc
-      .fontSize(10)
-      .fillColor('#555')
-      .text('Venta y distribución de gas envasado y matafuegos', 102, doc.y);
-    doc.fillColor('#000').moveDown(1.5);
-    doc.x = 50;
-
-    doc.fillColor('#000').fontSize(14).text(`Remito interno N° ${order.orderNumber}`);
-    doc
-      .fontSize(9)
-      .fillColor('#555')
-      .text(
-        'Este comprobante es un remito interno y no reemplaza a una factura fiscal.',
-      );
-    doc.fillColor('#000').moveDown(1);
-
-    doc.fontSize(10);
     doc.text(`Fecha: ${order.createdAt.toLocaleDateString('es-AR')}`);
     doc.text(`Cliente: ${order.client?.name ?? 'Consumidor final'}`);
     doc.moveDown(1);

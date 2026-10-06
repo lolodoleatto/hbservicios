@@ -1,18 +1,47 @@
-import { IsDateString, IsInt, IsNumber, IsOptional, IsString, Min } from 'class-validator';
+import {
+  ArrayMinSize,
+  IsDateString,
+  IsInt,
+  IsNumber,
+  IsOptional,
+  IsString,
+  Min,
+  ValidateNested,
+} from 'class-validator';
+import { Type } from 'class-transformer';
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
+
+export class CreateFireExtinguisherItemDto {
+  @ApiProperty({ example: 4, description: 'Debe ser un producto de tipo matafuego' })
+  @IsInt()
+  productId: number;
+
+  @ApiProperty({ example: 2 })
+  @IsInt()
+  @Min(1)
+  quantity: number;
+
+  @ApiPropertyOptional({ example: 8000, description: 'Precio de recarga por unidad' })
+  @IsOptional()
+  @IsNumber()
+  @Min(0)
+  unitPrice?: number;
+}
 
 export class CreateFireExtinguisherDto {
   @ApiProperty({ example: 1 })
   @IsInt()
   clientId: number;
 
-  @ApiProperty({ example: 4, description: 'Debe ser un producto de tipo matafuego' })
-  @IsInt()
-  productId: number;
+  @ApiProperty({ type: [CreateFireExtinguisherItemDto] })
+  @ValidateNested({ each: true })
+  @Type(() => CreateFireExtinguisherItemDto)
+  @ArrayMinSize(1)
+  items: CreateFireExtinguisherItemDto[];
 
   @ApiPropertyOptional({
-    example: 8000,
-    description: 'Monto cobrado por la recarga (opcional)',
+    example: 16000,
+    description: 'Total cobrado. Vacío = suma de las líneas con precio',
   })
   @IsOptional()
   @IsNumber()

@@ -81,6 +81,7 @@ async function bootstrap() {
     'order_items',
     'orders',
     'container_loans',
+    'fire_extinguisher_items',
     'fire_extinguishers',
     'expenses',
     'stock_movements',
@@ -330,7 +331,7 @@ async function bootstrap() {
     const client = pick(clients);
     const fe = await fireExtinguishersService.create({
       clientId: client.id,
-      productId: m.product.id,
+      items: [{ productId: m.product.id, quantity: 1 }],
       soldAt: iso(soldAt),
       expiresAt: iso(expiresAt),
       notes: plan.notes ?? undefined,
